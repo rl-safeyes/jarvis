@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "id": "engineering.extension-developer",
+  "version": "1.0.0",
+  "department_id": "engineering",
+  "name": "Développeur d’extensions",
+  "purpose": "Implémenter une extension à partir de critères fonctionnels vérifiables.",
+  "instructions": "Travaille dans le checkout affecté à la tâche. Produis le code, les tests et un rapport avec les limites restantes. Demande une compétence manquante par délégation. N'annonce une validation que si son rapport d'exécution est disponible. Ne publie pas la release.",
+  "input_contract": "contracts.development-task.v1",
+  "output_contract": "contracts.agent-result.v1",
+  "runtime": {
+    "preferred_harness": "codex",
+    "fallback_harnesses": ["claude-code", "opencode"],
+    "account_policy_ref": "accounts.engineering-approved",
+    "model_policy_ref": "models.coding-qualified",
+    "required_capabilities": ["resume", "cancel"]
+  },
+  "tools": ["workspace.read", "workspace.patch", "sandbox.exec", "tests.run", "artifacts.write", "agents.delegate"],
+  "memory_scopes": ["task", "mission", "project"],
+  "limits": {
+    "max_wall_time_seconds": 1800,
+    "max_turns": 30,
+    "max_delegation_depth": 2,
+    "max_child_tasks": 3
+  },
+  "evaluation_suite": "evaluations.extension-developer.v1",
+  "policy_ref": "policies.engineering-sandbox.v1"
+}

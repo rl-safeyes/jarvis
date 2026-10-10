@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Jarvis agent manifest",
+  "description": "Proposed structural contract. Authorization and registry references require separate server-side validation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "version", "department_id", "name", "purpose", "instructions", "input_contract", "output_contract", "runtime", "tools", "memory_scopes", "limits", "evaluation_suite", "policy_ref"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "$ref": "#/$defs/identifier" },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "department_id": { "$ref": "#/$defs/identifier" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "purpose": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "instructions": { "type": "string", "minLength": 1, "maxLength": 20000 },
+    "input_contract": { "$ref": "#/$defs/identifier" },
+    "output_contract": { "$ref": "#/$defs/identifier" },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preferred_harness", "fallback_harnesses", "account_policy_ref", "model_policy_ref", "required_capabilities"],
+      "properties": {
+        "preferred_harness": { "$ref": "#/$defs/harness" },
+        "fallback_harnesses": { "type": "array", "uniqueItems": true, "maxItems": 2, "items": { "$ref": "#/$defs/harness" } },
+        "account_policy_ref": { "$ref": "#/$defs/identifier" },
+        "model_policy_ref": { "$ref": "#/$defs/identifier" },
+        "required_capabilities": {
+          "type": "array", "uniqueItems": true,
+          "items": { "enum": ["resume", "permissions", "structuredOutput", "usage", "cancel"] }
+        }
+      }
+    },
+    "tools": { "type": "array", "uniqueItems": true, "maxItems": 30, "items": { "$ref": "#/$defs/identifier" } },
+    "memory_scopes": { "type": "array", "uniqueItems": true, "items": { "enum": ["task", "mission", "project", "personal"] } },
+    "limits": {
+      "type": "object", "additionalProperties": false,
+      "required": ["max_wall_time_seconds", "max_turns", "max_delegation_depth", "max_child_tasks"],
+      "properties": {
+        "max_wall_time_seconds": { "type": "integer", "minimum": 1, "maximum": 86400 },
+        "max_turns": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "max_delegation_depth": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "max_child_tasks": { "type": "integer", "minimum": 0, "maximum": 12 }
+      }
+    },
+    "evaluation_suite": { "$ref": "#/$defs/identifier" },
+    "policy_ref": { "$ref": "#/$defs/identifier" }
+  },
+  "$defs": {
+    "identifier": { "type": "string", "pattern": "^[a-z][a-z0-9._-]{0,119}$" },
+    "harness": { "enum": ["codex", "claude-code", "opencode"] }
+  }
+}
