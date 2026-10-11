@@ -1436,3 +1436,65 @@ textarea {
   gap: 12px;
   flex-wrap: wrap;
 }
+
+.agent-create-form {
+  margin-top: 18px;
+}
+.agent-card details {
+  margin-top: 12px;
+}
+.agent-card summary,
+.agent-tasks summary,
+.settings-card > summary {
+  cursor: pointer;
+}
+.agent-card label,
+.agent-create-form label {
+  display: grid;
+  gap: 6px;
+}
+.agent-card textarea,
+.agent-create-form textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #344139;
+  border-radius: 8px;
+  font: inherit;
+}
+.preserved-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.agent-tasks {
+  padding: 12px 0;
+  font-size: 13px;
+}
+.agent-task {
+  margin: 10px 0;
+  overflow-wrap: anywhere;
+}
+.agent-task p {
+  line-height: 1.6;
+}
+
+.agent-card textarea,
+.agent-create-form textarea {
+  color: inherit;
+  background: #111a15;
+  resize: vertical;
+}
+.agent-config {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0;
+}
+.agent-card select,
+.agent-create-form input,
+.agent-create-form select {
+  max-width: 100%;
+  min-width: 0;
+}
+.agent-card {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}

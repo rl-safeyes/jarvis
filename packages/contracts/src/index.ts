@@ -58,6 +58,7 @@ export interface ConversationDetail {
   conversation: Conversation;
   messages: Message[];
   missions: Mission[];
+  tasks?: import('./agents.ts').AgentTask[];
 }
 export interface SessionInfo {
   authenticated: true;
@@ -71,7 +72,10 @@ export interface AgentDefinition {
   department_id: string;
   description: string;
   preferred_harness: 'codex' | 'claude-code' | 'opencode';
-  status: 'simulated' | 'planned';
+  status: 'simulated' | 'planned' | 'ready';
+  revision?: number;
+  instructions?: string;
+  profile_id?: string | null;
   tools: readonly string[];
 }
 export interface Department {

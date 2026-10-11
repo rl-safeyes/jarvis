@@ -1,3 +1,5 @@
+import { AgentDirectory } from './AgentDirectory.tsx';
+import { AgentTasks } from './AgentTasks.tsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
@@ -207,6 +209,22 @@ function App() {
     if (!latest?.id || !session) return;
     setEvents([]);
     const source = new EventSource(`/api/v1/missions/${latest.id}/events`);
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    let registryDirty = false;
+    let listDirty = false;
+    function scheduleRefresh() {
+      if (refreshTimer) return;
+      refreshTimer = setTimeout(() => {
+        refreshTimer = undefined;
+        const work: Promise<unknown>[] = [refreshDetail(latest!.conversation_id)];
+        if (listDirty) work.push(refreshList());
+        if (registryDirty)
+          work.push(api<typeof catalogue>('/agents').then(setCatalogue), refreshRuntime());
+        listDirty = false;
+        registryDirty = false;
+        void Promise.all(work).catch(report);
+      }, 300);
+    }
     source.onopen = () => setStreamState('');
     source.addEventListener('mission', (event: MessageEvent) => {
       const value: MissionEvent = JSON.parse(event.data);
@@ -216,11 +234,24 @@ function App() {
           : [...previous, value].slice(-30),
       );
       if (
-        ['mission.started', 'mission.completed', 'mission.cancelled', 'mission.failed'].includes(
-          value.type,
-        )
-      )
-        void Promise.all([refreshDetail(latest.conversation_id), refreshList()]).catch(report);
+        [
+          'mission.started',
+          'mission.completed',
+          'mission.cancelled',
+          'mission.failed',
+          'task.queued',
+          'task.started',
+          'task.succeeded',
+          'task.failed',
+          'task.cancelled',
+          'agent.created',
+        ].includes(value.type)
+      ) {
+        if (value.type === 'agent.created') registryDirty = true;
+        if (['mission.completed', 'mission.cancelled', 'mission.failed'].includes(value.type))
+          listDirty = true;
+        scheduleRefresh();
+      }
     });
     source.addEventListener('done', () => {
       source.close();
@@ -231,10 +262,11 @@ function App() {
       void api<SessionInfo>('/auth/session').catch(report);
     };
     return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
       source.close();
       setStreamState('');
     };
-  }, [latest?.id, session, refreshDetail, refreshList, report]);
+  }, [latest?.id, session, refreshDetail, refreshList, refreshRuntime, report]);
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [detail?.messages.length, events.length]);
@@ -564,6 +596,9 @@ function App() {
                     <summary>
                       Mission {statusLabel[latest.status].toLocaleLowerCase()} · Voir les étapes
                     </summary>
+                    <AgentTasks
+                      tasks={(detail?.tasks ?? []).filter((t) => t.mission_id === latest.id)}
+                    />
                     <ol>
                       {events.map((event) => (
                         <li key={event.event_id}>{String(event.payload.message ?? event.type)}</li>
@@ -742,6 +777,9 @@ function App() {
               </div>
               {latest ? (
                 <>
+                  <AgentTasks
+                    tasks={(detail?.tasks ?? []).filter((t) => t.mission_id === latest.id)}
+                  />
                   <div className="mission-summary">
                     <span className={`mission-status ${latest.status}`}>
                       <span className="status-dot" />
@@ -796,47 +834,14 @@ function App() {
           </div>
         ) : view === 'organization' ? (
           <main className="page-content">
-            <span className="eyebrow">LES COMPÉTENCES DE VOTRE ESPACE</span>
-            <h1>Une équipe, un orchestrateur.</h1>
-            <p className="page-intro">
-              Les profils initiaux de Jarvis, organisés par domaine. Les agents spécialisés seront
-              activés après connexion des harnesses.
-            </p>
-            <div className="department-grid">
-              {catalogue.departments.map((dept) => (
-                <section className="department-card" key={dept.id}>
-                  <div className="department-title">
-                    <LayoutGrid size={18} />
-                    <h2>{dept.name}</h2>
-                  </div>
-                  <p>{dept.description}</p>
-                  {catalogue.agents
-                    .filter((agent) => agent.department_id === dept.id)
-                    .map((agent) => (
-                      <div className="agent-card" key={agent.id}>
-                        <div className="agent-card-head">
-                          <Bot size={19} />
-                          <strong>{agent.name}</strong>
-                          <span className="text-tag">
-                            {agent.status === 'simulated' ? 'SIMULATION' : 'PRÉVU'}
-                          </span>
-                        </div>
-                        <p>{agent.description}</p>
-                        <div className="agent-engine">
-                          Profil{' '}
-                          <span>
-                            {runtime?.profiles.find(
-                              (p) =>
-                                p.id ===
-                                runtime.agents.find((a) => a.id === agent.id)?.effective_profile_id,
-                            )?.name ?? 'Hérite du défaut'}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                </section>
-              ))}
-            </div>
+            <AgentDirectory
+              live={session.mode === 'live'}
+              profiles={runtime?.profiles ?? []}
+              onChange={() => {
+                void refreshRuntime();
+                void api<typeof catalogue>('/agents').then(setCatalogue).catch(report);
+              }}
+            />
           </main>
         ) : (
           <main className="page-content settings">

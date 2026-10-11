@@ -31,3 +31,15 @@ Le tag et le préfixe `jarvis-protocol-fixture` sont réservés aux tests. Le sc
 Pour vérifier les images réelles sans utiliser un compte existant, démarrer une autre pile avec le préfixe `jarvis-harness-test`, sans le fichier Compose de fixture ; les trois installations doivent réussir et un compte Codex neuf doit être déconnecté. Les tests Playwright `harnesses.spec.ts` couvrent ce parcours avec `E2E_LIVE=1`.
 
 Après la recette, arrêter la pile Compose et les conteneurs ayant le label `jarvis.owner=jarvis-protocol-fixture`. Les volumes sont conservés pour diagnostic ; aucune suppression de volumes n’est effectuée par le script.
+
+## Recette agents et délégation
+
+Dans un checkout distinct, configurer `.env` avec `JARVIS_DB_PORT=55434`, `JARVIS_HTTP_PORT=3303`, `JARVIS_PUBLIC_ORIGIN=http://localhost:3303`, `JARVIS_RUNTIME_PREFIX=jarvis-delegation-fixture` et le port 55434 dans `DATABASE_URL`.
+
+```bash
+docker build -f tests/fixtures/Dockerfile -t jarvis-delegation-fixture-harness-codex:0.161.0-v2 .
+docker compose -p jarvis-delegation-test --profile app up --build -d
+node tests/fixtures/check-delegation-protocol.mjs
+```
+
+Ne pas ajouter `compose.yml` de fixture historique à cette commande : son préfixe est différent. La recette agents cible uniquement le port 3303 et le worker `jarvis-delegation-test_worker_1`. Elle valide création, délégation, restitution, arrêt du spécialiste et reprise du worker sans répéter son inférence. Le profil factice reste disponible pour `tests/e2e/agents.spec.ts` avec `E2E_AGENTS=1`, `E2E_BASE_URL=http://localhost:3303` et le mot de passe propriétaire de cette pile. Arrêter ensuite les services et les conteneurs labellisés `jarvis.owner=jarvis-delegation-fixture`, en conservant les volumes.

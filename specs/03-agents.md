@@ -86,3 +86,7 @@ Le reviewer reçoit les critères, le diff exact et les rapports des outils dans
 Les documents récupérés sont des données, pas des instructions de sécurité. Toute mémoire conserve sa source, son périmètre, sa date et, si nécessaire, son expiration. Une suggestion déduite par un agent reste distincte d’un fait confirmé. La suppression couvre également les index et résumés dérivés ; la rétention des sauvegardes est expliquée dans les réglages.
 
 Une recherche textuelle avec filtres d’accès suffit au premier lot. La recherche sémantique pourra compléter ce mécanisme sans jamais contourner le filtrage par espace et projet.
+
+## Périmètre livré du premier lot
+
+La création de fiches et de départements, l’historique des instructions/profils et la délégation directe Jarvis → spécialiste sont implémentés. Les outils sont vides, le résultat du spécialiste est textuel, la profondeur est limitée à un et les missions sont bornées à 3 délégations. Les manifestes complets, évaluations qualitatives, mémoires et dépendances entre sous-tâches décrits plus haut constituent les lots suivants. Voir [l’état de l’implémentation](10-etat-implementation.md) pour les limites opérationnelles.

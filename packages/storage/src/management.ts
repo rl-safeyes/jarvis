@@ -96,8 +96,20 @@ export async function manage(
     ]);
     return `${intent.harness} est désormais le défaut pour les nouveaux runs des agents qui héritent, Jarvis inclus s’il n’a pas de choix spécifique.`;
   }
-  const name = (intent.agent ?? '').replace(/^le /, '');
-  const agentId = aliases[name] ?? name;
+  const name = (intent.agent ?? '').replace(/^(?:le |la |l')/, '');
+  let agentId = aliases[name] ?? name;
+  if (!aliases[name] && !name.includes('.')) {
+    const matches = (await c.query('SELECT id,name FROM agent_registry')).rows.filter(
+      (a) => normalize(a.name) === name,
+    );
+    if (matches.length > 1)
+      throw new DomainError(
+        409,
+        'agent_ambiguous',
+        'Plusieurs agents portent ce nom. Indiquez leur identifiant complet.',
+      );
+    if (matches.length === 1) agentId = matches[0].id;
+  }
   const a = (await c.query('SELECT * FROM agent_configs WHERE id=$1 FOR UPDATE', [agentId]))
     .rows[0];
   if (!a)

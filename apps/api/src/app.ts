@@ -19,7 +19,8 @@ import {
   loginSchema,
   submitMessageSchema,
 } from '@jarvis/contracts';
-import { agents, departments } from '@jarvis/agent-registry';
+import { registerAgentRoutes } from './agent-routes.ts';
+import { AgentRepository } from '../../../packages/storage/src/agents.ts';
 import { DomainError, type Repository } from '@jarvis/storage';
 
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -167,7 +168,7 @@ export async function createApp({
     harnessRepo,
     new SupervisorClient(supervisorUrl, supervisorToken),
   );
-  app.get('/api/v1/agents', async () => ({ agents, departments, mode }));
+  registerAgentRoutes(app, new AgentRepository(repo.pool), mode);
   app.get('/api/v1/conversations', async () => ({ conversations: await repo.listConversations() }));
   app.post('/api/v1/conversations', async (request, reply) => {
     const input = createConversationSchema.parse(request.body);

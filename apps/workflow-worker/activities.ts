@@ -1,3 +1,4 @@
+import { Orchestrator } from './orchestration.ts';
 import { heartbeat } from '@temporalio/activity';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -23,6 +24,7 @@ async function completeMission(
   state: string,
   text: string | null,
   error: string | null,
+  cancellationConfirmed = true,
 ) {
   await transaction(pool, async (c) => {
     const initial = (await c.query('SELECT conversation_id FROM missions WHERE id=$1', [id]))
@@ -30,7 +32,7 @@ async function completeMission(
     await c.query('SELECT id FROM conversations WHERE id=$1 FOR UPDATE', [initial.conversation_id]);
     const m = (await c.query('SELECT * FROM missions WHERE id=$1 FOR UPDATE', [id])).rows[0];
     if (['succeeded', 'failed', 'cancelled'].includes(m.status)) return;
-    const terminal = m.status === 'cancel_requested' ? 'cancelled' : state;
+    const terminal = m.status === 'cancel_requested' && cancellationConfirmed ? 'cancelled' : state;
     await c.query('UPDATE missions SET status=$2,result=$3,updated_at=now() WHERE id=$1', [
       id,
       terminal,
@@ -92,6 +94,16 @@ export async function executeOperation(id: string): Promise<void> {
           id,
           m.status,
         ]);
+        return;
+      }
+      if (m.orchestration_version === 1) {
+        const result = await new Orchestrator(pool, supervisor, heartbeat).execute(id);
+        await completeMission(id, result.state, result.text, result.error ?? null);
+        const current = (await pool.query('SELECT status FROM missions WHERE id=$1', [id])).rows[0];
+        await pool.query(
+          'UPDATE harness_operations SET state=$2,result=$3,error=$4,updated_at=now() WHERE id=$1',
+          [id, current.status, { message: 'Mission orchestrée terminée.' }, result.error ?? null],
+        );
         return;
       }
       runtime = m.runtime;
@@ -190,7 +202,27 @@ export async function executeOperation(id: string): Promise<void> {
     if (Context.current().info.attempt < 3) throw error;
     const message =
       'Opération interrompue. Vérifiez le runtime, la connexion et le modèle puis relancez explicitement.';
-    if (op.kind === 'mission') await completeMission(id, 'failed', null, message);
+    if (op.kind === 'mission') {
+      let confirmed = true;
+      try {
+        await new Orchestrator(pool, supervisor, heartbeat).stopChildren(id);
+      } catch {
+        confirmed = false;
+        await pool.query(
+          "UPDATE mission_steps SET status='failed',error=$2,updated_at=now() WHERE mission_id=$1 AND status IN ('queued','running')",
+          [id, 'État du runtime inconnu : arrêt non confirmé.'],
+        );
+      }
+      await completeMission(
+        id,
+        'failed',
+        null,
+        confirmed
+          ? message
+          : 'État du runtime inconnu : l’arrêt des tâches n’a pas pu être confirmé. Vérifiez le runtime avant de relancer.',
+        confirmed,
+      );
+    }
     if (op.kind === 'install')
       await pool.query("UPDATE harness_installations SET state='failed',error=$2 WHERE id=$1", [
         op.payload.harness,

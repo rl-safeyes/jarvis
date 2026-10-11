@@ -24,7 +24,7 @@ export class HarnessRepository {
         'INSERT INTO harness_installations(id,version) VALUES($1,$2) ON CONFLICT DO NOTHING',
         [h.id, h.version],
       );
-    for (const a of agents)
+    for (const a of agents) {
       await this.pool.query(
         'INSERT INTO agent_configs(id,instructions) VALUES($1,$2) ON CONFLICT DO NOTHING',
         [
@@ -32,6 +32,11 @@ export class HarnessRepository {
           `${a.description} Réponds en français. Cette version permet uniquement de converser, sans outils ni exécution de code.`,
         ],
       );
+      await this.pool.query(
+        'INSERT INTO agent_registry(id,name,department_id,description) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',
+        [a.id, a.name, a.department_id, a.description],
+      );
+    }
   }
   async dashboard(): Promise<HarnessDashboard> {
     return transaction(this.pool, async (c) => {

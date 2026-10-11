@@ -41,7 +41,42 @@ createInterface({ input: process.stdin }).on('line', (line) => {
         ),
       );
       result({ turn: { id: 'fixture-turn' } });
-      const slow = p.input[0].text.includes('attends');
+      let answer = 'Réponse du pair de test, sans modèle externe.';
+      let slow = p.input[0].text.includes('attends');
+      let prompt;
+      try {
+        prompt = JSON.parse(p.input[0].text);
+      } catch {}
+      if (prompt?.completed_steps) {
+        const request = prompt.conversation.at(-1).content;
+        if (request.includes('mission-delegation')) {
+          slow = false;
+          const agent = prompt.agents.find((a) => a.id === 'produit-recette.analyste-recette');
+          const last = prompt.completed_steps.at(-1);
+          const action = !agent
+            ? {
+                type: 'create_agent',
+                agent: {
+                  name: 'Analyste Recette',
+                  department: 'Produit Recette',
+                  description: 'Analyste pour la recette de délégation.',
+                  instructions: 'Rédige des critères vérifiables en français.',
+                  profile_id: null,
+                },
+              }
+            : last?.action === 'delegate'
+              ? { type: 'reply', text: 'Synthèse de Jarvis : ' + last.result.text }
+              : {
+                  type: 'delegate',
+                  agent_id: agent.id,
+                  task: request.includes('attends')
+                    ? 'attends puis rédige les critères'
+                    : 'Rédige les critères',
+                };
+          answer = JSON.stringify(action);
+        } else answer = JSON.stringify({ type: 'reply', text: answer });
+      } else if (p.input[0].text.includes('critères'))
+        answer = 'Résultat du spécialiste : trois critères vérifiables.';
       timer = setTimeout(
         () => {
           send({
@@ -51,7 +86,7 @@ createInterface({ input: process.stdin }).on('line', (line) => {
               item: {
                 type: 'agentMessage',
                 id: 'answer',
-                text: 'Réponse du pair de test, sans modèle externe.',
+                text: answer,
               },
             },
           });

@@ -78,7 +78,7 @@ export async function migrate(pool: Pool): Promise<void> {
     await client.query(
       'CREATE TABLE IF NOT EXISTS schema_migrations (version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())',
     );
-    for (const version of ['001-foundation', '002-harnesses']) {
+    for (const version of ['001-foundation', '002-harnesses', '003-agents']) {
       if (
         (await client.query('SELECT version FROM schema_migrations WHERE version=$1', [version]))
           .rowCount
@@ -155,7 +155,15 @@ export class Repository {
           id,
         ])
       ).rows.map(mission);
-      return { conversation: conversation(row), messages, missions };
+      const tasks = (
+        await client.query(
+          `SELECT s.id,s.mission_id,s.sequence,s.kind,s.agent_id,s.agent_name,s.status,s.result,s.error,
+        s.runtime->>'harness' AS harness,s.runtime->>'model' AS model,(s.runtime->>'agent_revision')::int AS agent_revision
+        FROM mission_steps s JOIN missions m ON m.id=s.mission_id WHERE m.conversation_id=$1 ORDER BY s.created_at,s.sequence`,
+          [id],
+        )
+      ).rows;
+      return { conversation: conversation(row), messages, missions, tasks };
     });
   }
   async submit(id: string, input: SubmitMessage): Promise<Mission> {
@@ -209,8 +217,15 @@ export class Repository {
       const missionId = randomUUID();
       const created = (
         await client.query(
-          "INSERT INTO missions(id,conversation_id,input,status,harness,runtime) VALUES ($1,$2,$3,'queued',$4,$5) RETURNING *",
-          [missionId, id, input.text, intent ? 'control' : (runtime?.harness ?? 'mock'), runtime],
+          "INSERT INTO missions(id,conversation_id,input,status,harness,runtime,orchestration_version) VALUES ($1,$2,$3,'queued',$4,$5,$6) RETURNING *",
+          [
+            missionId,
+            id,
+            input.text,
+            intent ? 'control' : (runtime?.harness ?? 'mock'),
+            runtime,
+            runtime ? 1 : 0,
+          ],
         )
       ).rows[0]!;
       await client.query(

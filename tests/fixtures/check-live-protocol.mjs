@@ -107,11 +107,16 @@ assert.equal(finished.result, null);
 console.log('Cancellation reaches the runtime and prevents late completion.');
 ({ c, m } = await start('attends puis réponds après redémarrage'));
 const container = `jarvis-protocol-fixture-account-${account.id}`;
+const runningDetail = await until(
+  () => api(`/conversations/${c.id}`),
+  (d) => d.tasks?.some((t) => t.kind === 'orchestrator'),
+);
+const nativeId = runningDetail.tasks.find((t) => t.kind === 'orchestrator').id;
 await until(
   async () =>
     JSON.parse(
       execFileSync('docker', ['exec', '-i', container, 'node', '/runtime/request.mjs'], {
-        input: JSON.stringify({ action: 'run', id: m.id }),
+        input: JSON.stringify({ action: 'run', id: nativeId }),
         encoding: 'utf8',
       }),
     ),
