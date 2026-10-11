@@ -15,12 +15,15 @@ test('rejects empty, oversized and unexpected message fields', () => {
   );
   assert.equal(submitMessageSchema.parse({ ...base, text: ' test ' }).text, 'test');
 });
-test('rejects live harnesses and insecure non-local origins', () => {
+test('validates live mode, supervisor secret and secure origins', () => {
   const env = {
     DATABASE_URL: 'postgresql://localhost/jarvis',
     JARVIS_OWNER_PASSWORD: 'a-long-test-password-only',
+    JARVIS_SUPERVISOR_TOKEN: 'test-only-supervisor-token-at-least-32-chars',
   };
   assert.throws(() => readConfig({ ...env, HARNESS_MODE: 'codex' }));
+  assert.throws(() => readConfig({ ...env, JARVIS_SUPERVISOR_TOKEN: '' }));
+  assert.equal(readConfig(env).mode, 'live');
   assert.throws(() => readConfig({ ...env, APP_ORIGIN: 'http://jarvis.example.com' }));
   assert.throws(() => readConfig({ ...env, APP_ORIGIN: 'https://jarvis.example.com/path' }));
   assert.equal(readConfig({ ...env, APP_ORIGIN: 'https://jarvis.example.com' }).secureCookie, true);

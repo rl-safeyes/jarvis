@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "id": "engineering.extension-developer",
   "version": "1.0.0",
   "department_id": "engineering",
@@ -9,14 +9,27 @@
   "input_contract": "contracts.development-task.v1",
   "output_contract": "contracts.agent-result.v1",
   "runtime": {
-    "preferred_harness": "codex",
-    "fallback_harnesses": ["claude-code", "opencode"],
-    "account_policy_ref": "accounts.engineering-approved",
-    "model_policy_ref": "models.coding-qualified",
-    "required_capabilities": ["resume", "cancel"]
+    "execution": {
+      "mode": "inherit"
+    },
+    "required_capabilities": [
+      "resume",
+      "cancel"
+    ]
   },
-  "tools": ["workspace.read", "workspace.patch", "sandbox.exec", "tests.run", "artifacts.write", "agents.delegate"],
-  "memory_scopes": ["task", "mission", "project"],
+  "tools": [
+    "workspace.read",
+    "workspace.patch",
+    "sandbox.exec",
+    "tests.run",
+    "artifacts.write",
+    "agents.delegate"
+  ],
+  "memory_scopes": [
+    "task",
+    "mission",
+    "project"
+  ],
   "limits": {
     "max_wall_time_seconds": 1800,
     "max_turns": 30,

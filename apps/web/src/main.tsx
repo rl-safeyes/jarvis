@@ -35,6 +35,8 @@ import {
 } from '@jarvis/contracts';
 import { api, ApiError, setCsrfToken } from './api.ts';
 import './styles.css';
+import { HarnessSettings } from './HarnessSettings.tsx';
+import type { HarnessDashboard } from '../../../packages/contracts/src/harnesses.ts';
 
 const pendingSchema = z.object({
   text: z.string(),
@@ -69,6 +71,7 @@ function readPending(): Pending | null {
 const statusLabel: Record<Mission['status'], string> = {
   queued: 'En attente',
   running: 'En cours',
+  cancel_requested: 'Arrêt en cours',
   succeeded: 'Terminée',
   failed: 'Échec',
   cancelled: 'Arrêtée',
@@ -110,6 +113,10 @@ function App() {
   const [sending, setSending] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [view, setView] = useState<'chat' | 'organization' | 'settings'>('chat');
+  const [runtime, setRuntime] = useState<HarnessDashboard | null>(null);
+  const refreshRuntime = useCallback(async () => {
+    setRuntime(await api<HarnessDashboard>('/harnesses'));
+  }, []);
   const [menuOpen, setMenuOpen] = useState(false);
   const [catalogue, setCatalogue] = useState<{
     agents: AgentDefinition[];
@@ -125,6 +132,13 @@ function App() {
   const authenticate = useCallback((value: SessionInfo) => {
     setCsrfToken(value.csrf_token);
     setSession(value);
+    if (value.mode === 'live')
+      void api<HarnessDashboard>('/harnesses')
+        .then((d) => {
+          setRuntime(d);
+          if (!d.settings.default_profile_id) setView('settings');
+        })
+        .catch(() => {});
     setError('');
   }, []);
   const report = useCallback((reason: unknown) => {
@@ -285,7 +299,11 @@ function App() {
       setDraft('');
       pendingRef.current = null;
       store('jarvis.pending', null);
-      await Promise.all([refreshDetail(pending.conversationId), refreshList()]);
+      await Promise.all([
+        refreshDetail(pending.conversationId),
+        refreshList(),
+        session?.mode === 'live' ? refreshRuntime() : Promise.resolve(),
+      ]);
     } catch (reason) {
       if (reason instanceof ApiError && reason.status === 409 && pending.conversationId) {
         pendingRef.current = null;
@@ -371,7 +389,7 @@ function App() {
             <ShieldCheck size={16} />
             <span>Espace privé · Session de 8 heures</span>
           </div>
-          <p className="login-mode">Première version · Moteur de démonstration</p>
+          <p className="login-mode">Votre assistant personnel · Accès privé</p>
         </div>
       </div>
     );
@@ -500,7 +518,13 @@ function App() {
           </div>
           <span className="mode-badge">
             <span />
-            Mode démonstration
+            {session.mode === 'mock'
+              ? 'Mode démonstration'
+              : (runtime?.profiles.find(
+                  (p) =>
+                    p.id ===
+                    runtime.agents.find((a) => a.id === 'direction.jarvis')?.effective_profile_id,
+                )?.name ?? 'Configuration requise')}
           </span>
         </header>
         {!online && (
@@ -607,7 +631,14 @@ function App() {
                         <div className="message-content">
                           <div className="message-meta">
                             <strong>{item.role === 'user' ? 'Vous' : 'Jarvis'}</strong>
-                            {item.role === 'assistant' && <span>Simulation</span>}
+                            {item.role === 'assistant' && (
+                              <span>
+                                {detail.missions.find((m) => m.id === item.mission_id)?.harness ===
+                                'mock'
+                                  ? 'Simulation'
+                                  : detail.missions.find((m) => m.id === item.mission_id)?.harness}
+                              </span>
+                            )}
                             <time>
                               {new Date(item.created_at).toLocaleTimeString('fr-FR', {
                                 hour: '2-digit',
@@ -624,7 +655,11 @@ function App() {
                         <span />
                         <span />
                         <span />
-                        <p>Jarvis prépare le résultat de démonstration…</p>
+                        <p>
+                          {session.mode === 'mock'
+                            ? 'Jarvis prépare le résultat de démonstration…'
+                            : 'Jarvis traite votre demande…'}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -652,7 +687,11 @@ function App() {
                   <div className="composer-tools">
                     <span>
                       <span className="status-dot" />
-                      {active ? 'Mission en cours' : 'Jarvis · Simulation'}
+                      {active
+                        ? 'Mission en cours'
+                        : session.mode === 'mock'
+                          ? 'Jarvis · Simulation'
+                          : 'Jarvis'}
                     </span>
                     <div>
                       <button
@@ -689,7 +728,9 @@ function App() {
                   </div>
                 </form>
                 <p className="composer-note">
-                  Aucun modèle IA connecté. Vos demandes restent dans cet environnement.
+                  {session.mode === 'mock'
+                    ? 'Aucun modèle IA connecté. Vos demandes restent dans cet environnement.'
+                    : 'Les demandes utilisent le compte et le modèle du profil sélectionné.'}
                 </p>
               </div>
             </main>
@@ -782,7 +823,14 @@ function App() {
                         </div>
                         <p>{agent.description}</p>
                         <div className="agent-engine">
-                          Harness prévu <span>{agent.preferred_harness}</span>
+                          Profil{' '}
+                          <span>
+                            {runtime?.profiles.find(
+                              (p) =>
+                                p.id ===
+                                runtime.agents.find((a) => a.id === agent.id)?.effective_profile_id,
+                            )?.name ?? 'Hérite du défaut'}
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -792,36 +840,7 @@ function App() {
           </main>
         ) : (
           <main className="page-content settings">
-            <span className="eyebrow">CONFIGURATION DE CETTE VERSION</span>
-            <h1>Un socle pour votre Jarvis.</h1>
-            <p className="page-intro">
-              Le parcours de conversation est opérationnel avec un moteur de démonstration. Les
-              connexions IA seront ajoutées après qualification des comptes.
-            </p>
-            <section className="settings-card">
-              <h2>
-                <FlaskConical size={20} />
-                Moteur d’exécution
-              </h2>
-              <dl>
-                <div>
-                  <dt>Mode actif</dt>
-                  <dd>Simulation déterministe</dd>
-                </div>
-                <div>
-                  <dt>Appels à des modèles IA</dt>
-                  <dd>Aucun</dd>
-                </div>
-                <div>
-                  <dt>Exécution de commandes</dt>
-                  <dd>Désactivée</dd>
-                </div>
-                <div>
-                  <dt>Conversations et missions</dt>
-                  <dd>Enregistrées dans PostgreSQL</dd>
-                </div>
-              </dl>
-            </section>
+            <HarnessSettings onChange={() => void refreshRuntime()} />
             <section className="settings-card">
               <h2>
                 <ShieldCheck size={20} />
@@ -836,7 +855,7 @@ function App() {
                 <LogOut size={16} />
               </button>
             </section>
-            <p className="muted">Version 0.1 · Fondations</p>
+            <p className="muted">Version 0.2 · Harnesses</p>
           </main>
         )}
       </div>

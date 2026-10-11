@@ -3,9 +3,39 @@
  * Identifiers reference trusted registries; no credentials belong in requests.
  * Transport DTOs must additionally be validated at runtime.
  */
-export type HarnessName = "codex" | "claude-code" | "opencode";
+/** Extensible registry identifier; a string is not proof of an installed integration. */
+export type HarnessName = string;
+/** Omitted execution selection has exactly the same meaning as inherit. */
+export type ExecutionSelection =
+  | { mode: "inherit" }
+  | { mode: "profile"; profile_ref: string };
+
+export interface SpaceRuntimeSettings {
+  defaultExecutionProfileId: string | null;
+  revision: number;
+}
+
+export interface ExecutionProfileVersion {
+  profileId: string;
+  versionId: string;
+  harnessInstallationId: string;
+  accountProfileId: string;
+  modelPolicyRef: string;
+}
+
+export interface ResolvedRuntime {
+  profileId: string;
+  profileVersionId: string;
+  source: "default" | "agent";
+  defaultRevision?: number;
+  harnessInstallationId: string;
+  harness: HarnessName;
+  harnessVersion: string;
+  adapterVersion: string;
+  runtimeImageDigest: string;
+}
 export type Capability = "resume" | "permissions" | "structuredOutput" | "usage" | "cancel";
-export type AccountState = "ready" | "reauth_required" | "rate_limited" | "disabled";
+export type AccountState = "disconnected" | "connecting" | "ready" | "reauth_required" | "rate_limited" | "disabled";
 
 export interface HarnessCapabilities {
   harness: HarnessName;
@@ -26,6 +56,7 @@ export interface RunRequest {
   missionId: string;
   taskId: string;
   agentVersionId: string;
+  resolvedRuntime: ResolvedRuntime;
   accountProfileId: string;
   modelId: string;
   workspaceId: string;
@@ -40,6 +71,7 @@ export interface RunRequest {
 export interface RunHandle {
   runId: string;
   nativeSessionId: string;
+  resolvedRuntime: ResolvedRuntime;
   harness: HarnessName;
   harnessVersion: string;
   accountProfileId: string;

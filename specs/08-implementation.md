@@ -18,6 +18,7 @@ jarvis/
     domain/                 Règles métier
     policies/               Droits risques et budgets
     agent-registry/         Versions et évaluations
+    harness-manager/        Catalogue, installation, connexions et profils
     harness-core/           Interface commune
     harness-codex/
     harness-claude/
@@ -40,28 +41,28 @@ Un workspace TypeScript partage les contrats sans permettre aux workers d’impo
 
 | Lot | Travail | Démonstration attendue | Charge indicative |
 | --- | --- | --- | --- |
-| 0 | Qualifier comptes, versions et interfaces des trois harnesses | Sur serveur : authentification, résultat, interruption, reprise et refus d’outil par moteur | 3 à 5 jours |
-| 1 | Authentification Jarvis, PWA texte, base, premier adaptateur | Message depuis iPhone, résultat visible sur Linux ou Mac, aucun doublon à la reconnexion | 5 à 8 jours |
+| 0 | Qualifier le premier harness et les recettes Docker ; inventorier les modes des autres | Serveur sans CLI : runtime fourni par Jarvis, connexion PWA, résultat, interruption, reprise et refus d’outil | À réestimer |
+| 1 | Authentification Jarvis, PWA, base, assistant de connexion, profils, défaut et premier adaptateur | Premier compte connecté sans IA préexistante, choix de Jarvis visible, message réel sans doublon entre appareils | À réestimer |
 | 2 | Temporal, superviseur, isolement, événements et budgets | Mission survivant au redémarrage d’un service, annulation effective, plafond respecté | 6 à 10 jours |
-| 3 | Départements, agents versionnés, création et mémoire | Jarvis crée un spécialiste borné, l’évalue, le réutilise et refuse une élévation de droits | 5 à 8 jours |
-| 4 | Compléter les adaptateurs et la voix | Missions sur les trois moteurs qualifiés ; demande orale en français depuis l’iPhone | 5 à 8 jours |
+| 3 | Départements, agents versionnés, création, mémoire et affectation de harness | Agent héritant du défaut, choix explicite par modification de fiche/prompt, évaluation et refus d’élévation de droits | À réestimer |
+| 4 | Ajout de harness par Jarvis, connexions multiples, autres adaptateurs et voix | Installation et connexion d’un second moteur depuis la PWA/chat, choix du défaut, demande orale depuis iPhone | À réestimer |
 | 5 | Extensions, développeur, review, runner de tests et préproduction | Jarvis réalise une fonctionnalité et fournit une prévisualisation avec preuves | 8 à 12 jours |
 | 6 | Classement du risque, release automatique et rollback | Changement faible risque publié ; changement sensible bloqué ; régression restaurée | 6 à 10 jours |
 | 7 | Restauration, supervision, stabilité et documentation | Installation neuve puis restauration contrôlée et recette des parcours critiques | 4 à 6 jours |
 
-Total indicatif : **42 à 67 jours de travail effectif** pour un développeur expérimenté, soit environ 9 à 14 semaines à temps plein avant aléas. Il s’agit d’un ordre de grandeur de planification, pas d’un engagement ; les restrictions de comptes et la robustesse du cycle autonome sont les principaux facteurs d’incertitude. L’assistance d’agents ne supprime pas la qualification et l’exploitation.
+L’estimation initiale de 42 à 67 jours ne couvrait pas tout le parcours de gestion des harnesses demandé. Elle doit être recalculée après qualification du premier parcours de connexion et des images Docker ; les lignes « À réestimer » ne sont pas incluses dans un nouveau total. Les restrictions de comptes et la robustesse du cycle autonome restent des facteurs d’incertitude. L’assistance d’agents ne supprime pas la qualification et l’exploitation.
 
 Les lots 0 à 4 forment le premier assistant utilisable. Les lots 5 et 6 apportent l’auto amélioration demandée. Le compagnon desktop, la voix continue, les notifications push et les modèles locaux viennent ensuite. Une recette minimale accompagne chaque lot ; le lot 7 approfondit la reprise et l’exploitation.
 
 ## Ordre d’implémentation du premier parcours
 
-1. Épingler les versions après le lot 0 et créer les migrations de données.
-2. Définir les schémas de message, mission, événement et manifeste.
-3. Implémenter un adaptateur simulé pour rendre les scénarios de panne reproductibles.
-4. Ajouter un compte réel qualifié et un agent sans shell pour le premier chat.
-5. Relier PWA, API et stockage puis vérifier la synchronisation entre appareils.
-6. Introduire une tâche de développement isolée avec artefact et vérification indépendante.
-7. Déporter cette tâche dans un workflow durable avant toute exécution longue ou autonome.
+1. Qualifier et épingler un premier harness, son adaptateur et son image Docker ; le livrer dans le déploiement sans dépendance aux CLI de l’hôte.
+2. Créer les contrats et migrations de packages, installations, comptes, profils, défaut et manifestes v2 ; conserver le simulateur pour les tests.
+3. Installer Temporal, l’outbox et le superviseur avant les exécutions réelles et installations ayant des effets externes.
+4. Construire l’assistant PWA sans IA : connexion, test borné, choix du défaut, récupération et affichage du choix effectif de Jarvis.
+5. Exécuter un premier chat réel sans shell, persistant et synchronisé entre appareils.
+6. Ajouter les commandes conversationnelles de configuration, l’installation d’un second harness connu et l’affectation/héritage des agents versionnés.
+7. Introduire les tâches de développement isolées avec artefacts, vérification indépendante et intégration de nouveaux adaptateurs via le cycle d’évolution.
 
 Le premier adaptateur réel peut être Codex si son compte est disponible. Le lot 0 peut faire retenir un autre moteur sans changer les contrats métier.
 
@@ -69,6 +70,12 @@ Le premier adaptateur réel peut être Codex si son compte est disponible. Le lo
 
 | Scénario | Résultat attendu |
 | --- | --- |
+| Serveur vierge sans CLI de harness | Runtime fourni par Docker Jarvis et connexion par la PWA sans modèle préconnecté |
+| Demande d’installation d’un harness connu | Installation suivie, connexion guidée, test et profil prêt, défaut conservé |
+| Agent sans sélection explicite | Utilisation du défaut de l’espace même si Jarvis a un choix spécifique |
+| Modification du prompt pour changer de harness | Nouvelle version cohérente de la fiche et sélection structurée évaluée |
+| Changement de défaut pendant un run | Nouveaux runs héritiers modifiés, run existant et agents explicites inchangés |
+| Tous les comptes déconnectés | Réglages et reconnexion accessibles sans réponse IA |
 | Deux soumissions du même message | Une mission, deux accusés cohérents |
 | Fermeture puis réouverture de la PWA | Mission poursuivie, historique et progression retrouvés |
 | Crash du worker après effet externe | Réconciliation, aucune répétition aveugle |
@@ -90,3 +97,5 @@ Les tests de contrats utilisent d’abord les simulateurs. Un petit jeu de tests
 ## Définition de la première version complète
 
 Le propriétaire peut utiliser la PWA sur ses trois environnements, envoyer une demande textuelle ou orale, suivre une mission durable, faire créer un agent puis demander une extension. Cette extension est développée, revue et testée ; une évolution faible risque se publie automatiquement, une évolution sensible attend sa validation. Les comptes peuvent être révoqués, les budgets imposés et la version précédente restaurée.
+
+La recette complète inclut les critères de [gestion des harnesses](04-harnesses.md#recette-de-la-gestion-des-harnesses), notamment le démarrage sans CLI sur l’hôte, les comptes multiples, les ajouts ultérieurs et la récupération sans moteur disponible.

@@ -17,7 +17,8 @@ export const submitMessageSchema = z
 export const loginSchema = z.object({ password: z.string().min(1).max(256) }).strict();
 export const commandSchema = z.object({ command: z.literal('cancel') }).strict();
 export type SubmitMessage = z.infer<typeof submitMessageSchema>;
-export type MissionStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
+export type MissionStatus =
+  'queued' | 'running' | 'cancel_requested' | 'succeeded' | 'failed' | 'cancelled';
 export interface Conversation {
   id: string;
   title: string;
@@ -37,7 +38,8 @@ export interface Mission {
   conversation_id: string;
   input: string;
   status: MissionStatus;
-  harness: 'mock';
+  harness: 'control' | 'mock' | 'codex' | 'claude-code' | 'opencode';
+  runtime?: import('./harnesses.ts').RuntimeSnapshot | null;
   agent_id: string;
   attempt: number;
   result: string | null;
@@ -60,7 +62,7 @@ export interface ConversationDetail {
 export interface SessionInfo {
   authenticated: true;
   csrf_token: string;
-  mode: 'mock';
+  mode: 'mock' | 'live';
   expires_at: string;
 }
 export interface AgentDefinition {

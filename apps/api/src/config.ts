@@ -5,7 +5,9 @@ const schema = z.object({
   APP_ORIGIN: z.string().url().default('http://localhost:5173'),
   HOST: z.string().default('127.0.0.1'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  HARNESS_MODE: z.literal('mock').default('mock'),
+  HARNESS_MODE: z.enum(['mock', 'live']).default('live'),
+  JARVIS_SUPERVISOR_URL: z.string().url().default('http://supervisor:7080'),
+  JARVIS_SUPERVISOR_TOKEN: z.string().optional(),
 });
 export function readConfig(env: NodeJS.ProcessEnv = process.env) {
   const parsed = schema.safeParse(env);
@@ -21,7 +23,12 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
     throw new Error('HTTPS est requis hors de localhost.');
   if (value.JARVIS_OWNER_PASSWORD.includes('replace-'))
     throw new Error('Générez une configuration avec npm run setup avant de démarrer.');
+  if (value.HARNESS_MODE === 'live' && (value.JARVIS_SUPERVISOR_TOKEN?.length ?? 0) < 32)
+    throw new Error('Exécutez npm run setup pour générer le secret du superviseur.');
   return {
+    mode: value.HARNESS_MODE,
+    supervisorUrl: value.JARVIS_SUPERVISOR_URL,
+    supervisorToken: value.JARVIS_SUPERVISOR_TOKEN ?? '',
     databaseUrl: value.DATABASE_URL,
     password: value.JARVIS_OWNER_PASSWORD,
     origin: value.APP_ORIGIN,

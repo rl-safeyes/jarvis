@@ -49,6 +49,16 @@ Un nouvel agent ne peut obtenir davantage de droits que l’intersection des dro
 
 Le fichier [agent-developer.json](examples/agent-developer.json) montre un profil validable par [agent.schema.json](examples/agent.schema.json). Le schéma valide la forme ; le noyau valide les droits effectifs, les identifiants existants et la compatibilité du harness.
 
+## Harness de l’agent et modification de son prompt
+
+Le manifeste v2 rend `runtime.execution` facultatif : l’absence du champ et `{ "mode": "inherit" }` signifient « utiliser le profil par défaut de l’espace ». Le même mécanisme s’applique à Jarvis. Un choix explicite prend la forme `{ "mode": "profile", "profile_ref": "profiles.developer-codex" }`. Il n’existe pas de sélection implicite par département ou par agent parent. Le département conserve ses restrictions de comptes, outils, modèles et données.
+
+L’utilisateur peut demander à Jarvis de modifier les instructions d’un agent pour lui attribuer un harness. Jarvis met à jour une version de la fiche contenant le prompt et cette sélection structurée, puis valide les références, droits et capacités et exécute les évaluations pertinentes avant activation. Le moteur est résolu par le noyau avant d’exécuter le prompt ; un texte seul n’est pas une règle de routage. Un moteur manquant déclenche le parcours d’installation/connexion et la version proposée reste inactive jusqu’à disponibilité.
+
+Un agent nouvellement créé hérite par défaut ; un choix explicite est conservé uniquement s’il correspond à la demande ou à une politique déjà autorisée. Changer le défaut ne réécrit pas tous les manifestes. Les runs figent le profil effectivement résolu ; une modification n’altère pas une exécution en cours. Un profil indisponible ou incompatible bloque l’exécution sans repli silencieux.
+
+Les manifestes v1 à `preferred_harness` ne sont pas relus comme des manifestes v2 : une migration crée une nouvelle version et résout leur ancienne sélection vers un profil précis. Si compte ou modèle sont ambigus, elle conserve un brouillon à compléter. Les versions historiques demeurent immuables.
+
 ## Délégation
 
 Chaque tâche contient un objectif, ses entrées, ses dépendances, les livrables attendus et un budget. Un spécialiste peut demander une sous-tâche via `agents.delegate`. Le noyau l’enregistre avant de lancer un autre agent. Les sous-agents natifs des harnesses sont désactivés par défaut ou comptabilisés explicitement dans le même arbre ; ils ne doivent pas créer une deuxième orchestration invisible.

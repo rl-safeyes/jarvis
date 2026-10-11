@@ -1,92 +1,88 @@
 # Jarvis
 
-Assistant personnel avec une PWA React, une API Fastify en TypeScript et une persistance PostgreSQL. Cette première tranche permet de se connecter, de dialoguer avec un **simulateur explicitement identifié**, de suivre les missions et de retrouver les conversations après rechargement.
+Assistant personnel en TypeScript avec PWA, API Fastify, PostgreSQL, Temporal et runtimes de harnesses dans Docker.
 
-## Fonctionnalités disponibles
+Cette version permet d’installer des moteurs du catalogue, connecter des comptes, tester des profils, choisir un défaut et affecter un profil à Jarvis ou aux fiches des spécialistes. Les conversations réelles passent par le harness choisi, avec historique, annulation et suivi durable. Les spécialistes autonomes, la voix et l’auto-amélioration ne sont pas encore activés.
 
-- Connexion du propriétaire avec cookie HttpOnly, expiration, déconnexion et protection CSRF.
-- Conversations persistantes et envoi idempotent des messages.
-- Missions en file, événements SSE rejouables, annulation et reprise du simulateur après interruption.
-- Catalogue initial des départements et profils d’agents.
-- Interface responsive, manifeste PWA, icônes et page hors connexion.
-- Tests unitaires, tests PostgreSQL, parcours navigateur et workflow GitHub Actions.
+## Démarrer avec Docker
 
-**Aucun modèle IA, compte fournisseur, outil shell ou déploiement autonome n’est activé.** Le worker PostgreSQL fourni exécute uniquement le simulateur sans effets de bord. Temporal et les adaptateurs réels seront introduits dans les prochains lots ; le worker refuse les adaptateurs non simulés.
-
-## Lancement pour développer
-
-Prérequis : Node.js 24 recommandé, npm et Docker avec Compose. Le projet exige au minimum Node.js 22.12. Avec nvm : `nvm install && nvm use`.
-
-```bash
-npm ci
-npm run setup
-docker compose up -d db
-npm run dev
-```
-
-Sur une machine équipée de Compose v1, remplacer `docker compose` par `docker-compose`.
-
-Ouvrir **http://localhost:5173**. Le mot de passe est la valeur `JARVIS_OWNER_PASSWORD` du fichier local `.env`, créé avec des permissions 0600. Le script ne l’affiche pas et ne remplace pas une configuration existante. Ce fichier est exclu de Git. Les migrations sont appliquées au démarrage de l’API.
-
-PostgreSQL utilise le port local 55432, l’API le port 3000 et Vite le port 5173. Utiliser `localhost` dans le navigateur, conformément à `APP_ORIGIN`. Le dépôt ne fournit aucun mot de passe de connexion par défaut.
-
-## Lancement de la version construite
-
-Avec Docker et Node.js disponibles pour générer la configuration :
+Prérequis : Docker et Compose, Node.js 24 pour le script de configuration. Aucun Codex, Claude Code ou OpenCode n’est requis sur le serveur.
 
 ```bash
 node scripts/setup.mjs
 docker compose --profile app up --build -d
 ```
 
-Ouvrir **http://localhost:3000**, avec le même mot de passe local. L’image construit l’interface et sert l’API et la PWA sur la même origine. Cette commande remplace le parcours de développement ; les deux utilisent le port 3000. Les volumes PostgreSQL conservent les données entre les redémarrages.
+Avec Compose v1, remplacer `docker compose` par `docker-compose`. Ouvrir **http://localhost:3000**. Le mot de passe est la valeur `JARVIS_OWNER_PASSWORD` dans `.env`. Relancer `setup` sur une installation existante ajoute les secrets manquants sans modifier les mots de passe existants.
 
-Les ports sont liés à l’interface locale. Pour un accès iPhone via le réseau, ajouter un reverse proxy HTTPS et définir `JARVIS_PUBLIC_ORIGIN=https://votre-domaine` dans `.env`. Les cookies deviennent alors `Secure`. Ne pas exposer PostgreSQL. Le service worker conserve uniquement une page publique hors connexion, jamais les conversations ni les réponses API. Les brouillons locaux peuvent être conservés dans le navigateur ; les missions demandent une connexion au serveur.
+Le premier démarrage installe Codex automatiquement dans une image dédiée. Pour préparer plusieurs moteurs dès le départ, définir `JARVIS_INITIAL_HARNESSES=codex,claude-code,opencode` dans `.env` avant le démarrage. Une opération d’installation apparaît dans les réglages ; sa construction peut prendre plusieurs minutes.
 
-## Commandes de vérification
+## Connecter un harness
+
+Dans **Réglages** :
+
+1. Attendre l’installation initiale ou installer un autre moteur.
+2. Ajouter un compte nommé pour ce moteur.
+3. Connecter le compte avec le parcours proposé, puis cliquer sur **Vérifier la connexion**.
+4. Créer un profil avec un nom et un identifiant de modèle accessible à ce compte.
+5. Cliquer sur **Tester** : une courte demande réelle est envoyée au fournisseur.
+6. Choisir le profil prêt comme défaut. Jarvis et les agents sans choix spécifique héritent de ce défaut.
+
+| Harness | Version livrée | Connexions dans cette tranche |
+| --- | --- | --- |
+| Codex | 0.161.0 | Code d’appareil ChatGPT ou clé API OpenAI |
+| Claude Code | 2.1.296 | Clé API Anthropic ; connexion d’abonnement non intégrée |
+| OpenCode | 1.18.35 | Clé API OpenAI ou Anthropic ; modèle au format `fournisseur/modèle` |
+
+Le parcours ChatGPT requiert que la connexion par code d’appareil soit autorisée pour le compte. Les méthodes réellement disponibles restent soumises au fournisseur. Un catalogue de modèles n’atteste pas des droits : seul le test réel valide le profil. Les appels API utilisent la facturation du compte choisi. Aucun compte, jeton ou exécutable n’est importé depuis le serveur hôte.
+
+L’interface reste accessible sans moteur connecté. Les clés se saisissent dans le formulaire dédié, jamais dans une conversation. Les clés Claude/OpenCode sont chiffrées dans le volume de compte ; Codex gère son cache natif protégé dans son propre volume. Conserver les volumes **et** `JARVIS_VAULT_KEY` pour restaurer les connexions. Ne pas remplacer cette clé sans migration des secrets. Une session révoquée chez le fournisseur exige une nouvelle connexion.
+
+## Administrer par conversation
+
+Ces commandes explicites sont reconnues sans dépendre d’un modèle :
+
+- « Jarvis, installe OpenCode »
+- « Connecte mon compte Codex » — ouvre le parcours via les réglages ; l’identification reste une action du propriétaire.
+- « Utilise Codex par défaut »
+- « Jarvis, travaille sur Claude Code »
+- « Modifie le prompt du reviewer pour utiliser Codex »
+- « Remets le reviewer sur le défaut »
+
+Le choix du moteur est enregistré dans la fiche structurée avant l’envoi du prompt. Les instructions de rôle sont modifiables dans la même fiche. Si plusieurs profils du moteur sont prêts, Jarvis demande de choisir dans les réglages ; il ne choisit pas silencieusement un compte. Le parseur couvre les formes ci-dessus, pas encore toutes les formulations naturelles. Un harness inconnu du catalogue nécessite une nouvelle intégration logicielle.
+
+Un changement de défaut concerne les prochains runs. Les missions en cours conservent leur profil, compte, modèle et versions. Les agents à profil explicite restent sur ce profil. Un profil déconnecté ou non testé bloque le lancement au lieu de déclencher un repli implicite.
+
+## Exécution et exploitation
+
+- Temporal orchestre installations, tests et missions réelles. Une outbox PostgreSQL assure le démarrage durable avec un identifiant stable.
+- Le superviseur est le seul composant qui monte le socket Docker. Il constitue une partie privilégiée du plan de contrôle ; ses recettes et son API interne doivent rester réservées à l’administrateur. Aucun port du superviseur ou des runtimes n’est publié.
+- Un conteneur de compte est non privilégié, limité en ressources et séparé de l’API. Il possède son propre volume persistant et accepte une inférence à la fois. Il ne reçoit aucun montage du dépôt ou du répertoire personnel de l’hôte.
+- Dans cette tranche, les outils des modèles sont désactivés : conversation uniquement, pas de shell, de développement autonome ou d’édition du serveur.
+- Les workflows sont compilés dans l’image. Le worker n’a pas besoin d’écrire dans le code au démarrage.
+- Le registre d’exécution du runtime rend le lancement idempotent. Un crash du worker peut se rattacher au résultat existant. Un crash du runtime pendant un appel produit un échec explicite avec résultat inconnu, sans deuxième inférence aveugle.
+- Les conversations transfèrent les 20 derniers messages, bornés à 64 000 caractères, dans une nouvelle session native par mission. La reprise native longue et le streaming token par token restent à ajouter.
+
+Les services Compose utilisent les volumes `postgres-data` et `temporal-data`. Les volumes de compte portent le préfixe `jarvis-account-…-data`, et les conteneurs le label `jarvis.owner=jarvis`. Ces conteneurs sont gérés par le superviseur, pas directement par Compose : `docker compose down` seul ne les arrête pas. Pour un arrêt complet, arrêter d’abord le worker puis les conteneurs portant ce label, sans supprimer leurs volumes. Les préfixes sont configurables via `JARVIS_RUNTIME_PREFIX` pour isoler plusieurs installations.
+
+Pour un accès distant, installer un proxy HTTPS et définir `JARVIS_PUBLIC_ORIGIN` sur l’origine publique exacte. Aucun port fournisseur n’est à exposer. L’accès Safari/iPhone réel reste à qualifier ; le format mobile est testé avec Chromium.
+
+## Développement et tests
 
 ```bash
+npm ci
+npm run setup
+# Pour travailler uniquement sur le simulateur : HARNESS_MODE=mock dans .env
+docker compose up -d db
+npm run dev
 npm run check
 npm run build
-npm run doctor
 ```
 
-`doctor` vérifie seulement la présence des exécutables Git, Docker et harnesses. Il ne lit pas leurs secrets et n’appelle aucun modèle. La qualification réelle des comptes reste à réaliser.
+Pour les tests d’intégration, définir `TEST_DATABASE_URL` vers une base dédiée : chaque fichier crée puis supprime son propre schéma. `npm run test:integration` ne doit pas viser une base de production.
 
-Les tests d’intégration exigent une URL de **base de test** explicite. Chaque exécution crée puis supprime son propre schéma isolé ; les autres schémas restent intacts.
+Les tests Playwright de conversation utilisent le mode `mock`, `E2E_BASE_URL` et `E2E_OWNER_PASSWORD`. Les tests `harnesses.spec.ts` demandent `E2E_LIVE=1` et une pile Docker de test avec Codex installé, sans compte connecté. Voir [la recette de protocole](tests/fixtures/README.md) pour tester les exécutions et la reprise Temporal sans appel fournisseur.
 
-```bash
-TEST_DATABASE_URL='postgresql://utilisateur:mot-de-passe@localhost:port/base-de-test' npm run test:integration
-```
+## État et suite
 
-Pour les tests navigateur, démarrer l’application, installer Chromium avec `npx playwright install chromium`, puis fournir le mot de passe de cet environnement de test :
-
-```bash
-E2E_OWNER_PASSWORD='mot-de-passe-de-test' npm run test:e2e
-```
-
-`E2E_BASE_URL` permet de changer l’URL et `CHROME_PATH` de réutiliser un exécutable Chromium installé. Les captures et traces vont dans `test-results/`, exclu de Git. Le profil mobile émule l’iPhone sous Chromium ; la recette sur Safari et iPhone réels reste à faire.
-
-## Organisation du code
-
-| Dossier | Responsabilité |
-| --- | --- |
-| `apps/api` | Authentification, API, événements et worker de simulation |
-| `apps/web` | PWA et interface de conversation |
-| `packages/contracts` | Validation des entrées et types partagés |
-| `packages/storage` | Transactions, migrations et persistance |
-| `packages/agent-registry` | Profils initiaux des agents et départements |
-| `packages/harness-core` | Premier contrat d’exécution commun |
-| `packages/harness-mock` | Simulateur déterministe, sans effet externe |
-| `infra` | Construction Docker |
-| `tests` | Tests unitaires, intégration et navigateur |
-
-Les dépendances sont gérées à la racine du workspace npm et épinglées dans `package-lock.json`. Pour formater le code, utiliser `npm run format`.
-
-## Prochain jalon
-
-Qualifier un compte et un harness réel, intégrer Temporal pour les exécutions longues, puis ajouter les environnements isolés et la politique de capacités avant toute exécution de code généré. La voix, la création dynamique d’agents et l’auto amélioration suivent les lots décrits dans les spécifications.
-
-- [Architecture et périmètre](specs/README.md)
-- [Plan de réalisation](specs/08-implementation.md)
-- [État du premier jalon](specs/10-etat-implementation.md)
+L’installation des trois images, le parcours navigateur et les contrats de protocole sont vérifiés. La qualification d’une inférence avec les comptes réels du propriétaire reste à effectuer depuis l’interface. Les autres fonctions prévues sont détaillées dans [specs](specs/README.md), avec [l’état exact de l’implémentation](specs/10-etat-implementation.md).

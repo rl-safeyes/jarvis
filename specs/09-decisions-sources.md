@@ -56,3 +56,9 @@ Références consultées le 10 octobre 2026. Les liens proches des affirmations 
 | [Installation des PWA](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Installing) | Distribution par navigateur |
 | [Microphone navigateur](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia) | Capture et permissions |
 | [Docker rootless](https://docs.docker.com/engine/security/rootless/) | Exécution avec privilèges réduits |
+
+## Complément confirmé : gestion des harnesses
+
+Le propriétaire demande un ou plusieurs harnesses de départ, leur connexion guidée, l’ajout ultérieur de nouveaux harnesses par Jarvis et la possibilité de choisir le moteur de Jarvis et des spécialistes. Sans sélection explicite, un agent utilise le défaut de l’espace, Jarvis compris. Une demande de modification du prompt peut définir ce choix ; le routage est enregistré dans le manifeste structuré.
+
+Le propriétaire confirme que les harnesses doivent être installés dans le déploiement Docker de Jarvis, sans dépendre de programmes déjà présents sur le serveur. La séparation en runtimes dédiés, les profils harness/compte/modèle et l’assistant sans IA sont les choix techniques proposés pour réaliser ce parcours. Ils restent à implémenter.

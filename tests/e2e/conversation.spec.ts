@@ -60,5 +60,5 @@ test('owner logs in, runs a persisted simulation, reloads and explores agents', 
     await page.getByRole('button', { name: 'Ouvrir le menu' }).click();
   await page.getByRole('button', { name: /^Organisation/ }).click();
   await expect(page.getByRole('heading', { name: 'Une équipe, un orchestrateur.' })).toBeVisible();
-  await expect(page.getByText('claude-code', { exact: true })).toBeVisible();
+  await expect(page.getByText('Hérite du défaut').first()).toBeVisible();
 });

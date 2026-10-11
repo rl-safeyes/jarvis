@@ -10,7 +10,9 @@ Jarvis fournit un point d’entrée unique pour demander un travail, suivre son 
 | Missions | Plan, étapes, agents mobilisés, statut, durée, consommation et livrables |
 | Création d’agents | Création d’un spécialiste lorsqu’une compétence manque ; évaluation avant activation |
 | Départements | Catalogue par domaine, budgets, outils autorisés et règles de confidentialité |
-| Comptes | Connexion des moteurs, état des sessions, quotas connus et reconnexion |
+| Harnesses | Un ou plusieurs moteurs fournis au déploiement Docker, installation ultérieure demandée à Jarvis, versions et état |
+| Comptes | Connexion guidée depuis la PWA, état des sessions, quotas connus et reconnexion sans dépendre d’un modèle |
+| Choix du moteur | Défaut global, choix explicite pour Jarvis ou un spécialiste, héritage du défaut en l’absence de choix |
 | Auto amélioration | Proposition et implémentation d’une extension, tests, review, publication selon son risque |
 | Contrôle | Suspension, annulation d’une mission, gel global et validations contextuelles |
 | Mémoire | Préférences et connaissances consultables, corrigeables et supprimables |
@@ -43,9 +45,15 @@ Les enregistrements bruts sont supprimés après transcription par défaut. Une 
 2. **Missions** : arbre de tâches, avancement, blocages, annulation et artefacts.
 3. **Organisation** : départements, agents, versions, outils et performances.
 4. **Évolutions** : changements proposés, prévisualisations, tests, risque et historique des releases.
-5. **Réglages** : comptes, modèles accessibles, budgets, mémoire, appareils et règles d’autonomie.
+5. **Réglages** : installation et connexion des harnesses, profil par défaut, choix de Jarvis, comptes, modèles accessibles, budgets, mémoire, appareils et règles d’autonomie. Cet écran fonctionne même sans moteur disponible.
 
 Une validation présente le changement concret, les accès nouveaux, les résultats de tests et le retour arrière prévu. Les boutons « Approuver » et « Refuser » s’appliquent à cette version uniquement. Jarvis réutilise les autorisations existantes dans leur périmètre.
+
+## Premier démarrage et administration par conversation
+
+Le propriétaire choisit un ou plusieurs harnesses fournis par les images Docker de Jarvis, connecte ses comptes dans un assistant PWA et désigne le profil par défaut. Les CLI éventuellement présents sur le serveur ne sont pas utilisés. L’interface distingue « installé », « connecté » et « prêt à exécuter ».
+
+Après ce premier démarrage, « installe un autre harness et connecte mon compte » ouvre un parcours suivi dans la conversation et les réglages. « Utilise ce harness par défaut », « travaille sur ce harness » adressé à Jarvis et « modifie le prompt de cet agent pour utiliser ce harness » sont des commandes de configuration supportées. Jarvis confirme la portée du changement effectué. Si plusieurs comptes rendent la demande ambiguë, il demande lequel employer. Les détails de résolution et de récupération figurent dans [Harnesses et comptes](04-harnesses.md).
 
 ## Exemple de création de capacité
 

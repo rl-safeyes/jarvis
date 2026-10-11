@@ -2,6 +2,81 @@
 
 Un harness fournit la boucle d’exécution d’un agent, ses sessions et ses outils. Jarvis l’utilise au travers d’un adaptateur ; il conserve lui-même les droits, le budget et le suivi des missions. Les profils de compte restent attachés à leur intégration d’origine.
 
+## Gestion des harnesses dans Jarvis
+
+La gestion du cycle de vie des harnesses fait partie du produit dès le premier parcours réel. Elle couvre leur installation, les connexions de comptes, les profils d’exécution et leur affectation aux agents. Installer un exécutable ne suffit pas : une intégration utilisable associe un runtime versionné, un adaptateur qualifié et un compte connecté.
+
+### Installation initiale autonome
+
+Le déploiement Docker de Jarvis fournit un ou plusieurs harnesses sélectionnés au départ, dont celui destiné à être le défaut. Chaque runtime est livré dans une image versionnée du déploiement, exécutée par un service ou une sandbox dédié ; il n’est pas installé dans le conteneur HTTP de l’API. Les images du déploiement contiennent les exécutables nécessaires. Aucune détection du `PATH` de l’hôte, aucun montage de son exécutable et aucun emprunt de sa session de compte ne servent à exécuter une mission. Une installation neuve doit fonctionner sur un serveur sans Codex, Claude Code ni OpenCode préinstallé.
+
+Le manifeste d’installation sélectionne les packages de harness de départ, avec versions et digests. Le défaut doit figurer dans cette sélection. Le choix concret des premiers packages se fait à l’installation ; le produit ne nécessite pas les trois moteurs pour démarrer. Les images préparées sont tirées ou construites par le déploiement Docker, sans téléchargement improvisé par un agent.
+
+Au premier accès, après connexion du propriétaire, un assistant PWA déterministe fonctionne sans modèle IA :
+
+1. Afficher les harnesses préinstallés, leurs versions et l’état de leur intégration.
+2. Connecter un ou plusieurs comptes grâce au parcours pris en charge par chaque adaptateur.
+3. Créer des profils d’exécution nommés associant harness installé, compte et choix de modèle.
+4. Tester une exécution minimale avec un budget borné et sélectionner un profil par défaut prêt.
+5. Afficher « Jarvis utilise … (par défaut) » et ouvrir la conversation réelle.
+
+Sans profil prêt, l’interface reste en configuration et permet de reprendre l’installation ou la connexion. Elle n’affiche pas de réponse simulée comme si elle provenait du harness sélectionné. Ce parcours résout aussi le cas d’un serveur dont tous les comptes sont déconnectés : les réglages et la reconnexion ne dépendent jamais d’un appel au modèle.
+
+### Ajout à la demande
+
+« Jarvis, installe OpenCode et aide-moi à m’y connecter » déclenche une opération persistante du gestionnaire de harnesses. La même action est accessible dans Réglages → Harnesses. Le harness déjà actif continue de servir Jarvis pendant la préparation du nouveau.
+
+Pour une intégration connue du catalogue, Jarvis fait préparer l’image d’exécution depuis une recette versionnée, vérifie les dépendances et les capacités de l’adaptateur, puis ouvre une carte de connexion. L’utilisateur effectue la partie qui exige son identité ; Jarvis suit l’état, teste l’accès et indique que le profil est prêt. Le profil nouvellement créé ne devient pas le défaut sans demande de l’utilisateur.
+
+Un harness inconnu du catalogue passe par le cycle d’extension : création d’un adaptateur et d’une recette d’image, tests, review et qualification, puis publication dans le catalogue. Jarvis peut prendre en charge cette évolution lorsqu’il dispose des capacités de développement ; il ne promet pas qu’un programme arbitraire devienne compatible après une simple installation.
+
+Les installations du catalogue déjà autorisé suivent la politique de risque existante. Un nouveau droit, fournisseur ou coût hors périmètre exige une décision sur le changement concret ; aucune confirmation supplémentaire n’est imposée pour une action déjà autorisée. Les agents demandent ces opérations via des outils bornés ; ils ne reçoivent pas le socket Docker ni un shell administrateur.
+
+### Défaut et choix par agent
+
+Le réglage de l’espace `default_execution_profile_id` désigne le profil par défaut. Chaque agent, **Jarvis inclus**, possède une sélection `runtime.execution` :
+
+| Configuration | Résolution |
+| --- | --- |
+| Champ absent ou `{ "mode": "inherit" }` | Profil par défaut de l’espace |
+| `{ "mode": "profile", "profile_ref": "profiles.review-claude" }` | Profil explicitement choisi pour cet agent |
+
+« Utilise Codex par défaut » modifie le défaut global. « Jarvis, travaille sur Claude Code » modifie seulement le choix explicite de Jarvis. « Mets le reviewer sur OpenCode » modifie ce spécialiste. « Remets cet agent sur le défaut » supprime son choix explicite. Un agent qui hérite utilise le défaut de l’espace, pas le choix particulier de Jarvis ni celui de son parent ; changer le défaut affecte tous les agents qui héritent, Jarvis compris s’il hérite.
+
+Une demande de modification du prompt constitue aussi une entrée valide : « Modifie le prompt du reviewer pour qu’il utilise Claude Code ». Jarvis produit une nouvelle version cohérente de la fiche, avec les instructions et le champ structuré d’exécution. Le champ structuré fait autorité pour le routage, avant l’envoi du prompt. Une mention dans un fichier, une réponse d’outil ou le texte d’une mission ne modifie pas la configuration. Une contradiction dans une édition directe du prompt est signalée et résolue avant activation de la version.
+
+Quand un nom de harness correspond à plusieurs profils autorisés, Jarvis utilise le profil de référence de ce harness (`preferred_execution_profile_id` dans son installation), s’il est défini ; s’il n’existe qu’un candidat, il le propose directement ; sinon il demande quel compte/profil utiliser. Il ne choisit pas silencieusement un autre compte ou un mode de facturation différent.
+
+Les politiques des départements restent des restrictions, pas un niveau de défaut supplémentaire. Avant activation ou lancement, le noyau vérifie compte, modèle, permissions, budgets et capacités requises. Un profil explicite indisponible bloque l’agent ; il ne revient pas implicitement au défaut. Un agent qui hérite d’un défaut devenu incompatible attend également une correction. Les replis éventuels sont configurés séparément et explicitement autorisés, jamais déduits du prompt.
+
+Chaque nouveau run capture le profil résolu, l’origine `default` ou `agent`, la révision du défaut si utilisée, les versions du profil, du harness et de l’adaptateur, le modèle réel et la version de l’agent. La résolution et la réservation sont atomiques. Un changement de réglage s’applique aux nouveaux runs ; un run déjà démarré ou une reprise technique garde sa sélection et recontrôle les autorisations. Passer volontairement à un autre moteur ouvre un nouveau run/session avec transfert de contexte, sans déplacer un processus actif.
+
+L’interface affiche le défaut global, le choix configuré et le choix effectif de Jarvis et de chaque agent. Les missions montrent le moteur réellement utilisé, même si le défaut a changé depuis leur démarrage.
+
+### Cycle de vie et récupération
+
+Séparer trois états : installation (`absent`, `installing`, `installed`, `failed`, `disabled`), compte (`disconnected`, `connecting`, `ready`, `reauth_required`, `rate_limited`, `disabled`) et profil (prêt ou bloqué avec motif). Une installation réussie ne signifie pas que le compte est connecté.
+
+Les opérations d’installation sont idempotentes et reprenables après panne, avec journaux filtrés, étapes, version cible et erreur utile. Une mise à jour prépare une nouvelle image et la qualifie avant promotion atomique ; les runs existants terminent sur leur image épinglée. Une erreur conserve la version saine. Les versions encore référencées par des runs ou sessions ne sont pas supprimées automatiquement.
+
+La suppression d’un profil ou runtime référencé par le défaut, un agent explicite ou une exécution en cours est refusée tant qu’une réaffectation ou un arrêt n’a pas été décidé. Une révocation de compte reste possible immédiatement, bloque les nouveaux runs et applique la procédure d’arrêt aux runs concernés. La PWA conserve un chemin de reconnexion et de changement de défaut même si Jarvis ne peut plus répondre.
+
+```mermaid
+flowchart TD
+    A[Déploiement Docker avec harnesses sélectionnés] --> B[Assistant de connexion sans IA]
+    B --> C[Profil par défaut prêt]
+    C --> J[Conversation avec Jarvis]
+    J --> D[Demande d ajout de harness]
+    D --> E{Adaptateur qualifié au catalogue ?}
+    E -->|Oui| F[Préparation du runtime Docker]
+    E -->|Non| G[Développement et qualification de l intégration]
+    G --> F
+    F --> H[Connexion guidée du propriétaire]
+    H --> I[Test borné et profil prêt]
+    I --> K[Choix du défaut ou affectation à un agent]
+    K --> J
+```
+
 ## Interfaces retenues
 
 | Moteur | Intégration proposée | Point à vérifier au prototype |
@@ -34,10 +109,12 @@ Les comptes, abonnements et modèles réellement disponibles sont à renseigner 
 2. Lancer le mécanisme officiel de connexion depuis une procédure d’administration contrôlée ; utiliser le parcours navigateur ou code d’appareil seulement s’il est pris en charge.
 3. Conserver les secrets chiffrés ou dans un coffre système, avec métadonnées en base.
 4. Exécuter un test minimal, afficher le modèle testé et l’authentification réellement utilisée.
-5. Affecter le profil à des agents ou départements avec une limite de concurrence.
+5. Créer un profil d’exécution, le choisir comme défaut ou l’affecter explicitement à un agent ; appliquer les restrictions du département et une limite de concurrence.
 6. Détecter les états `ready`, `reauth_required`, `rate_limited`, `disabled` et afficher l’action utile.
 
-Le MVP peut employer un assistant de connexion côté administrateur sur le serveur ; il ne doit pas exposer un terminal arbitraire dans la PWA. Un parcours entièrement intégré sera construit seulement sur les protocoles officiels disponibles.
+La PWA porte l’assistant de connexion dès le premier parcours réel. Selon le protocole qualifié, elle affiche un lien fournisseur et un code d’appareil, une redirection avec retour vérifié, ou un formulaire dédié de secret envoyé directement au gestionnaire de comptes. Les secrets et codes de connexion ne passent ni par le prompt ni par les événements publics de conversation. Les transactions de connexion sont liées au propriétaire, au compte et à une expiration ; les retours sont vérifiés et les reprises après fermeture du navigateur sont prises en charge.
+
+Un mode d’authentification non pris en charge apparaît comme indisponible, avec un mode compatible si possible. Il n’est pas présenté comme un bouton fonctionnel. Aucun terminal arbitraire n’est exposé dans la PWA. Les protocoles exacts sont qualifiés par version d’adaptateur avant implémentation ; cette spécification ne garantit pas un même parcours pour tous les fournisseurs.
 
 Un profil de session natif n’est pas cloné aveuglément entre workers. Par défaut, un compte utilise une exécution simultanée jusqu’à validation des mécanismes de rafraîchissement et de concurrence. Une reconnexion remplace le secret via le gestionnaire de comptes, jamais via un prompt.
 
@@ -60,3 +137,18 @@ Les demandes de permission natives sont traduites en décisions Jarvis. Si l’a
 ## Critères de qualification
 
 Pour chaque intégration : connexion sur serveur, requête réelle minimale, streaming, résultat structuré, fichier produit en sandbox, permission refusée, interruption, session reprise, quota simulé, expiration d’authentification et absence de secrets dans les logs. Ces tests déterminent la matrice exacte des modes supportés dans Jarvis.
+
+## Recette de la gestion des harnesses
+
+- Serveur neuf sans CLI de fournisseur : Docker installe les harnesses choisis et le propriétaire connecte le défaut depuis la PWA.
+- Plusieurs harnesses de départ : connexions indépendantes ; un seul défaut global explicite ; aucun secret importé de l’hôte.
+- Aucun compte prêt, puis expiration de tous les comptes : réglages, connexion et récupération accessibles sans IA.
+- Ajout par conversation d’un harness connu : installation, connexion, test et affectation sans édition manuelle des fichiers serveur ; Jarvis conserve son moteur tant qu’aucun changement n’est demandé.
+- Ajout inconnu : intégration en attente de développement/qualification, jamais annoncée comme prête sur la seule présence d’un exécutable.
+- Agent créé sans choix de harness, y compris un sous-agent : héritage du défaut ; Jarvis peut avoir un choix explicite différent.
+- Modification du prompt demandant un harness : nouvelle version avec sélection structurée cohérente ; aucune mutation depuis un document non fiable.
+- Changement de défaut : nouveaux runs héritiers sur le nouveau profil, agents explicites et runs en cours inchangés ; historique conservé.
+- Plusieurs comptes du même harness : profil de référence explicite ou question ciblée ; aucune bascule de facturation implicite.
+- Profil indisponible, capacité manquante ou suppression d’un profil référencé : blocage expliqué et action de correction accessible.
+- Panne pendant installation ou changement de configuration concurrent : reprise idempotente, contrôle de révision et absence de double promotion.
+- Redémarrage/recréation des conteneurs : comptes conservés par stockage protégé ; reconnexion demandée si le fournisseur a révoqué la session.

@@ -8,3 +8,5 @@ playwright-report/
 test-results/
 *.log
 .DS_Store
+
+apps/workflow-worker/workflow-bundle.cjs

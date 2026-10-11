@@ -1,43 +1,53 @@
-# État du premier jalon
+# État de l’implémentation
 
-Date : 10 octobre 2026. Cette première tranche livre un parcours complet avec simulateur. Elle constitue une base du lot 1 et du contrat d’adaptateurs, sans revendiquer l’achèvement de la qualification des harnesses du lot 0.
+Mise à jour : 11 octobre 2026. Le premier socle simulé est conservé pour les tests. Une deuxième tranche ajoute le gestionnaire de harnesses et le chemin de conversation réelle.
 
-## Réalisé
+## Livré dans le code
 
 | Domaine | État |
 | --- | --- |
-| Workspace | TypeScript, React, Vite, Fastify et paquets partagés |
-| Accès | Un propriétaire, mot de passe local, sessions persistantes de 8 heures, limitation des tentatives, cookie HttpOnly et CSRF |
-| Conversations | Création et envoi idempotents, contrôle de version, historique partagé via PostgreSQL |
-| Missions | Simulation, événements persistés, flux SSE avec reprise par curseur, annulation et résultat |
-| Reprise | Bail d’exécution de 15 secondes, exclusion des anciens workers, maximum de 3 tentatives |
-| Catalogue | Quatre départements et quatre profils initiaux ; spécialistes signalés comme prévus |
-| PWA | Interface responsive, manifeste, icônes, page hors connexion et brouillon local |
-| Exploitation locale | Compose, image applicative, migrations transactionnelles et script de configuration |
-| Vérification | Tests de contrats, de transactions et de parcours navigateur ; CI définie |
+| Application | TypeScript, React, Vite, Fastify ; PWA responsive et page hors connexion |
+| Accès | Propriétaire unique, session persistante, cookie HttpOnly, CSRF et limitation des tentatives |
+| Conversations | Envoi idempotent, contrôle de version, historique PostgreSQL, événements SSE |
+| Runtimes Docker | Recettes épinglées pour Codex, Claude Code et OpenCode ; aucun emprunt de CLI ou de compte de l’hôte |
+| Premier démarrage | Codex installé par défaut ; plusieurs moteurs initiaux sélectionnables via `JARVIS_INITIAL_HARNESSES` |
+| Connexion | Assistant PWA utilisable sans IA ; Codex par code ChatGPT ou clé API, Claude par clé Anthropic, OpenCode par clé OpenAI/Anthropic |
+| Profils | Plusieurs comptes et modèles, test réel obligatoire avant sélection, défaut global et affectation par agent |
+| Héritage | Jarvis et spécialistes sans choix explicite utilisent le défaut ; snapshots immuables par mission |
+| Fiches d’agents | Instructions et choix du profil persistés, révision optimiste et historique des versions |
+| Administration par chat | Commandes explicites d’installation, orientation vers connexion, choix du défaut, choix de Jarvis/spécialiste et retour à l’héritage |
+| Exécution réelle | Temporal, outbox, worker séparé et superviseur Docker ; une inférence à la fois par compte |
+| Reprise | Idempotence par opération ; rattachement après perte du worker ; résultat inconnu signalé après crash du runtime, sans nouvelle inférence automatique |
+| Contrôle | Annulation demandée puis vérifiée côté runtime, invalidation des profils après changement de compte |
+| Secrets | Clés API Claude/OpenCode chiffrées AES-GCM ; cache natif Codex dans un volume dédié protégé, jamais copié de l’hôte |
 
-## Écarts temporaires explicites
+## Limites présentes
 
-Temporal n’est pas encore installé. Une petite file persistante PostgreSQL sert uniquement au simulateur sans effets de bord. Elle n’est pas le moteur retenu pour les harnesses réels et ne doit pas être étendue aux commandes ou actions externes. Le worker vérifie cette restriction au démarrage.
+Le démarrage réel de la connexion Codex par code appareil est vérifié. Les images de runtime (révision `v2`) exportent le magasin de certificats Mozilla inclus dans Node vers `/etc/ssl/certs/ca-certificates.crt` pour le client HTTPS natif. La vérification TLS reste activée ; ce magasin suit la version de l’image Node. Les erreurs réseau, TLS et refus du fournisseur traversent les couches sous forme de codes filtrés ; aucun diagnostic natif contenant potentiellement des secrets n’est exposé.
 
-Le contrat exécutable dans `packages/harness-core` est un sous-ensemble de la cible : il couvre une exécution, des événements et l’interruption. Les comptes, permissions interactives et sessions natives seront ajoutés avec le premier harness qualifié.
+Le propriétaire a validé la connexion ChatGPT Business, le profil Codex et une conversation réelle dans Jarvis. Les autres fournisseurs restent à qualifier avec leurs comptes réels. L’installation d’un exécutable ne vaut pas preuve d’accès à un modèle. Les connexions d’abonnement Claude et les autres fournisseurs OpenCode ne sont pas intégrés dans cette tranche.
 
-La base correspond à un propriétaire unique. Les espaces, utilisateurs multiples, budgets, outils, approbations et releases ne sont pas encore implémentés. Le catalogue est fourni par le code et ne permet pas encore la création dynamique d’agents.
+Les outils natifs sont désactivés pour les conversations : pas d’exécution de code demandé par le modèle, pas d’accès au dépôt, pas de développement autonome. Les spécialistes ont des fiches configurables mais la délégation et la création dynamique ne sont pas actives. Les fiches actuelles ne constituent pas encore le registre complet de manifestes v2 avec suites d’évaluation.
 
-Le service worker ne conserve que la page hors connexion. L’interface complète exige le serveur ; aucune mission n’est envoyée silencieusement hors ligne. Une demande dont la réponse réseau est perdue conserve son identifiant pour une nouvelle tentative sans duplication.
+Le catalogue installable comprend les trois intégrations connues. Ajouter une autre marque, mettre à jour une recette ou qualifier une nouvelle version nécessite encore une modification logicielle. L’installation conversationnelle suit les formulations documentées dans le README ; l’interprétation générale des demandes et les cartes d’action intégrées restent à développer. La connexion est guidée depuis les réglages, pas réalisée par le modèle à la place du propriétaire.
 
-L’accès navigateur mobile est vérifié par émulation Chromium. Safari sur macOS et un iPhone réel, l’installation native de la PWA, la voix et les notifications restent à qualifier.
+Les profils sont immuables dans cette tranche : créer un nouveau profil pour changer de modèle. Le choix de compte ambigu se résout manuellement dans les réglages. La suppression des profils, les mises à jour automatiques de runtime, le profil de référence par harness et les replis configurables restent à implémenter.
 
-## Vérifications et limites
+Le dialogue transmet les 20 derniers messages, bornés à 64 000 caractères. Les événements SSE exposent les étapes ; la réponse est persistée à la fin du tour. Le streaming des tokens, les sessions natives longues et les budgets fins restent à ajouter. Le superviseur possède le socket Docker : il est privilégié et ne doit pas être accessible aux agents.
 
-Les vérifications couvrent la compilation TypeScript, la construction Vite, les requêtes concurrentes identiques, les conflits d’identifiants, le contrôle de version, les baux expirés, la protection contre un ancien worker, l’annulation, la limite de reprises, l’authentification, le CSRF, la déconnexion et la reprise du flux SSE.
+La voix, les notifications, le compagnon desktop, les espaces multiples et le cycle de release autonome ne sont pas réalisés. Jarvis n’est donc pas encore auto-améliorable.
 
-Les parcours navigateur couvrent la connexion, l’envoi, le résultat simulé, la persistance après rechargement, l’arrêt d’une mission, le catalogue et l’absence de débordement horizontal en format mobile. Aucun appel à un fournisseur IA n’est effectué.
+## Vérifications
 
-## Suite prioritaire
+- Compilation TypeScript, build PWA et compilation des workflows Temporal.
+- Tests unitaires et PostgreSQL : idempotence, transactions, héritage, snapshots, changement de défaut, choix explicite de Jarvis, révocation, concurrence, CSRF et séparation de la file simulée.
+- Installation réelle des trois images dans une pile Docker dédiée ; vérification de leurs exécutables sans accéder aux installations de l’hôte.
+- Parcours PWA sur ordinateur et format iPhone sous Chromium : configuration sans moteur connecté et compte neuf sans reprise d’identifiants hôte.
+- Recette de protocole avec un pair Codex factice et Temporal réel : test de profil, réponse persistée, annulation et reprise du worker sans deuxième inférence. Les résultats ne qualifient pas les comptes fournisseurs.
 
-1. Qualifier un compte et un mode d’authentification réels sur le serveur cible.
-2. Étendre le contrat de harness et vérifier les capacités de permission et d’interruption.
-3. Installer Temporal avec outbox et projections avant les jobs ayant des effets externes.
-4. Construire le superviseur d’environnements isolés et les capacités limitées par mission.
-5. Activer les agents spécialistes, puis la création de profils et leurs évaluations.
+## Suite
+
+1. Connecter les comptes réels depuis la PWA, tester les modèles et qualifier chaque mode d’authentification utilisé.
+2. Compléter streaming, états de quota/reconnexion, budgets, sessions et gestion des versions de runtime.
+3. Activer délégation, agents versionnés évalués et outils limités dans des workspaces isolés.
+4. Ajouter création dynamique, développement/review, préproduction et publication avec retour arrière selon le risque.

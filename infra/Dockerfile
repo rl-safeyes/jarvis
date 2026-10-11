@@ -1,9 +1,9 @@
-FROM node:24-alpine AS build
+FROM node:24-bullseye-slim AS build
 WORKDIR /app
 COPY . .
-RUN npm ci && npm run build && npm prune --omit=dev
+RUN npm ci && npm run build
 
-FROM node:24-alpine AS runtime
+FROM node:24-bullseye-slim AS runtime
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000
 WORKDIR /app
 COPY --from=build --chown=node:node /app /app

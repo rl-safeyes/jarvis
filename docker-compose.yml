@@ -5,16 +5,74 @@ services:
     environment:
       POSTGRES_USER: jarvis
       POSTGRES_DB: jarvis
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Générez .env avec npm run setup}
-    ports:
-      - '127.0.0.1:55432:5432'
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Exécutez npm run setup}
+    ports: ['127.0.0.1:${JARVIS_DB_PORT:-55432}:5432']
+    volumes: [postgres-data:/var/lib/postgresql/data]
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U jarvis -d jarvis']
+      test: [CMD-SHELL, 'pg_isready -U jarvis -d jarvis']
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
+  temporal-db:
+    profiles: [app]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: [temporal-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U temporal']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+  temporal:
+    profiles: [app]
+    image: temporalio/auto-setup:1.29.1
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: ${POSTGRES_PASSWORD}
+      POSTGRES_SEEDS: temporal-db
+      DYNAMIC_CONFIG_FILE: config/dynamicconfig/development-sql.yaml
+    depends_on:
+      temporal-db: { condition: service_healthy }
+    restart: unless-stopped
+  supervisor:
+    profiles: [app]
+    build:
+      context: .
+      dockerfile: infra/Supervisor.Dockerfile
+    environment:
+      JARVIS_SUPERVISOR_TOKEN: ${JARVIS_SUPERVISOR_TOKEN:?Exécutez npm run setup}
+      JARVIS_VAULT_KEY: ${JARVIS_VAULT_KEY:?Exécutez npm run setup}
+      JARVIS_RUNTIME_PREFIX: ${JARVIS_RUNTIME_PREFIX:-jarvis}
+    volumes: [/var/run/docker.sock:/var/run/docker.sock]
+    read_only: true
+    tmpfs: [/tmp]
+    restart: unless-stopped
+  worker:
+    profiles: [app]
+    build:
+      context: .
+      dockerfile: infra/Dockerfile
+    command: [./node_modules/.bin/tsx, apps/workflow-worker/main.ts]
+    environment:
+      DATABASE_URL: postgresql://jarvis:${POSTGRES_PASSWORD}@db:5432/jarvis
+      TEMPORAL_ADDRESS: temporal:7233
+      JARVIS_SUPERVISOR_URL: http://supervisor:7080
+      JARVIS_SUPERVISOR_TOKEN: ${JARVIS_SUPERVISOR_TOKEN}
+      JARVIS_INITIAL_HARNESSES: ${JARVIS_INITIAL_HARNESSES:-codex}
+    depends_on:
+      db: { condition: service_healthy }
+      temporal: { condition: service_started }
+      supervisor: { condition: service_started }
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
     restart: unless-stopped
   app:
     profiles: [app]
@@ -24,26 +82,24 @@ services:
     init: true
     environment:
       DATABASE_URL: postgresql://jarvis:${POSTGRES_PASSWORD}@db:5432/jarvis
-      JARVIS_OWNER_PASSWORD: ${JARVIS_OWNER_PASSWORD:?Générez .env avec npm run setup}
+      JARVIS_OWNER_PASSWORD: ${JARVIS_OWNER_PASSWORD:?Exécutez npm run setup}
       APP_ORIGIN: ${JARVIS_PUBLIC_ORIGIN:-http://localhost:3000}
-      HARNESS_MODE: mock
+      HARNESS_MODE: live
+      JARVIS_SUPERVISOR_URL: http://supervisor:7080
+      JARVIS_SUPERVISOR_TOKEN: ${JARVIS_SUPERVISOR_TOKEN}
     depends_on:
-      db:
-        condition: service_healthy
-    ports:
-      - '127.0.0.1:3000:3000'
+      db: { condition: service_healthy }
+    ports: ['127.0.0.1:${JARVIS_HTTP_PORT:-3000}:3000']
     read_only: true
-    tmpfs:
-      - /tmp
+    tmpfs: [/tmp]
     cap_drop: [ALL]
-    security_opt:
-      - no-new-privileges:true
+    security_opt: [no-new-privileges:true]
     healthcheck:
       test:
         [
-          'CMD',
-          'node',
-          '-e',
+          CMD,
+          node,
+          -e,
           "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 15s
@@ -52,3 +108,4 @@ services:
     restart: unless-stopped
 volumes:
   postgres-data:
+  temporal-data:

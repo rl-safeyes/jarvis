@@ -10,6 +10,10 @@ flowchart TB
     P --> G[HTTPS et authentification]
     G --> A[API Jarvis]
     A --> V[Adaptateurs STT et TTS]
+    A --> M[Gestionnaire de harnesses et connexions]
+    M --> R
+    M --> T
+    M --> S
     A --> O[Orchestrateur Jarvis]
     O --> R[Registre agents outils départements]
     O --> K[Politiques et budgets]
@@ -58,6 +62,10 @@ L’orchestrateur génère un plan structuré, validé par schéma : tâches, d�
 Temporal pilote l’état d’exécution. PostgreSQL métier fournit une projection pour la PWA et stocke les données métier ; les deux ne deviennent pas deux moteurs concurrents de scheduling. Une outbox transactionnelle démarre les workflows avec un identifiant déterministe. Les projections ignorent les doublons et un réconciliateur répare les écarts.
 
 Le superviseur attribue une sandbox, un profil de compte et un workspace. Le modèle n’accède pas à l’API d’administration des conteneurs. L’adaptateur traduit les événements natifs du harness dans le format Jarvis. Les services externes sont accessibles par une passerelle qui vérifie les capacités autorisées.
+
+Le gestionnaire de harnesses expose le catalogue, les opérations d’installation, la connexion et les profils d’exécution. Sa configuration et ses parcours de récupération sont déterministes et accessibles sans agent IA. Les installations passent par des workflows et le superviseur, avec recettes d’images versionnées. Le premier harness et les suivants appartiennent tous au déploiement Docker de Jarvis ; le plan d’exécution n’utilise jamais les CLI ou sessions du serveur hôte.
+
+Le résolveur de profils choisit le profil explicite de l’agent, sinon le défaut de l’espace, y compris pour Jarvis. Il vérifie les politiques et capture la sélection dans le run avant tout appel à l’adaptateur. Le prompt décrit le travail ; il ne peut pas substituer un moteur au choix validé. Voir [la règle de résolution](04-harnesses.md#défaut-et-choix-par-agent).
 
 ## Séquence d’une mission
 

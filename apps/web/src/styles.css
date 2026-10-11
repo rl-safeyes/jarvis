@@ -1334,3 +1334,105 @@ textarea {
     transition: none !important;
   }
 }
+
+/* Harness onboarding */
+.harness-settings {
+  min-width: 0;
+}
+.harness-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+}
+.harness-card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.harness-form {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 18px 0;
+}
+.harness-form label,
+.field {
+  display: flex;
+  flex: 1 1 180px;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  min-width: 0;
+}
+.harness-settings input,
+.harness-settings select,
+.harness-settings textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #34443c;
+  background: #131c17;
+  color: #e5eee8;
+  font: inherit;
+}
+.harness-settings textarea {
+  resize: vertical;
+}
+.harness-settings option {
+  background: #131c17;
+}
+.harness-settings p {
+  overflow-wrap: anywhere;
+}
+.harness-settings .secondary {
+  white-space: normal;
+}
+.profile-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid #29372f;
+  overflow-wrap: anywhere;
+}
+.profile-row p {
+  margin: 6px 0;
+  font-size: 13px;
+}
+.agent-editor {
+  padding: 14px 0;
+  border-top: 1px solid #29372f;
+}
+.agent-editor summary {
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.agent-editor .harness-form {
+  align-items: stretch;
+  flex-direction: column;
+}
+.agent-editor label {
+  flex-basis: auto;
+}
+.auth-card {
+  padding: 16px;
+  margin: 16px 0;
+  border: 1px solid #5e9370;
+  border-radius: 10px;
+}
+.auth-card strong {
+  font-size: 24px;
+  letter-spacing: 3px;
+}
+.auth-card a {
+  color: #a4e2b6;
+}
+.button-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}

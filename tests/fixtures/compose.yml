@@ -1,0 +1,5 @@
+version: '3.8'
+services:
+  supervisor:
+    environment:
+      JARVIS_RUNTIME_PREFIX: jarvis-protocol-fixture

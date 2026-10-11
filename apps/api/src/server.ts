@@ -11,13 +11,13 @@ const pool = new Pool({
   connectionTimeoutMillis: 5000,
 });
 await migrate(pool);
-const repo = new Repository(pool);
+const repo = new Repository(pool, config.mode);
 const app = await createApp({ repo, ...config, logger: true, serveWeb: true });
 const worker = new SimulationWorker(repo, new MockHarness(), (error) =>
   app.log.error({ err: error }, 'Simulation worker error'),
 );
 await app.listen({ host: config.host, port: config.port });
-worker.start();
+if (config.mode === 'mock') worker.start();
 let closing = false;
 async function shutdown() {
   if (closing) return;

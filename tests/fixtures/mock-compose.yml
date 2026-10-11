@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  mock:
+    image: jarvis-harness-test_app:latest
+    environment:
+      DATABASE_URL: postgresql://jarvis:${POSTGRES_PASSWORD}@db:5432/jarvis
+      JARVIS_OWNER_PASSWORD: ${JARVIS_OWNER_PASSWORD}
+      APP_ORIGIN: http://localhost:3302
+      HARNESS_MODE: mock
+    ports: ['127.0.0.1:3302:3000']
+    depends_on:
+      db: {condition: service_healthy}

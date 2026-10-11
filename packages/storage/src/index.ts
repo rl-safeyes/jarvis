@@ -1,5 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { HarnessRepository } from './harnesses.ts';
+import { managementIntent, manage } from './management.ts';
 import { Pool, type PoolClient } from 'pg';
 import type {
   Conversation,
@@ -36,6 +38,7 @@ function mission(row: Row): Mission {
     agent_id: row.agent_id,
     attempt: row.attempt,
     result: row.result,
+    runtime: row.runtime ?? null,
     created_at: date(row.created_at),
     updated_at: date(row.updated_at),
   };
@@ -70,22 +73,22 @@ export async function transaction<T>(
 }
 
 export async function migrate(pool: Pool): Promise<void> {
-  const sql = await readFile(new URL('../migrations/001-foundation.sql', import.meta.url), 'utf8');
   await transaction(pool, async (client) => {
     await client.query('SELECT pg_advisory_xact_lock(74638104)');
     await client.query(
       'CREATE TABLE IF NOT EXISTS schema_migrations (version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())',
     );
-    if (
-      (
-        await client.query('SELECT version FROM schema_migrations WHERE version=$1', [
-          '001-foundation',
-        ])
-      ).rowCount
-    )
-      return;
-    await client.query(sql);
-    await client.query('INSERT INTO schema_migrations(version) VALUES ($1)', ['001-foundation']);
+    for (const version of ['001-foundation', '002-harnesses']) {
+      if (
+        (await client.query('SELECT version FROM schema_migrations WHERE version=$1', [version]))
+          .rowCount
+      )
+        continue;
+      await client.query(
+        await readFile(new URL(`../migrations/${version}.sql`, import.meta.url), 'utf8'),
+      );
+      await client.query('INSERT INTO schema_migrations(version) VALUES($1)', [version]);
+    }
   });
 }
 
@@ -108,7 +111,10 @@ export interface Claim {
   leaseToken: string;
 }
 export class Repository {
-  constructor(readonly pool: Pool) {}
+  constructor(
+    readonly pool: Pool,
+    readonly mode: 'mock' | 'live' = 'mock',
+  ) {}
 
   async createConversation(clientId: string, title: string): Promise<Conversation> {
     return transaction(this.pool, async (client) => {
@@ -185,7 +191,7 @@ export class Repository {
       if (
         (
           await client.query(
-            "SELECT id FROM missions WHERE conversation_id=$1 AND status IN ('queued','running')",
+            "SELECT id FROM missions WHERE conversation_id=$1 AND status IN ('queued','running','cancel_requested')",
             [id],
           )
         ).rowCount
@@ -195,11 +201,16 @@ export class Repository {
           'mission_active',
           'Une mission est déjà en cours dans cette conversation.',
         );
+      const intent = this.mode === 'live' ? managementIntent(input.text) : null;
+      const runtime =
+        this.mode === 'live' && !intent
+          ? await new HarnessRepository(this.pool).resolve(client)
+          : null;
       const missionId = randomUUID();
       const created = (
         await client.query(
-          "INSERT INTO missions(id,conversation_id,input,status) VALUES ($1,$2,$3,'queued') RETURNING *",
-          [missionId, id, input.text],
+          "INSERT INTO missions(id,conversation_id,input,status,harness,runtime) VALUES ($1,$2,$3,'queued',$4,$5) RETURNING *",
+          [missionId, id, input.text, intent ? 'control' : (runtime?.harness ?? 'mock'), runtime],
         )
       ).rows[0]!;
       await client.query(
@@ -212,8 +223,33 @@ export class Repository {
       );
       await appendEvent(client, missionId, 'mission.queued', {
         message: 'Mission enregistrée.',
-        simulated: true,
+        simulated: !runtime,
       });
+      if (intent) {
+        const text = await manage(client, new HarnessRepository(this.pool), missionId, intent);
+        await client.query("UPDATE missions SET status='succeeded',result=$2 WHERE id=$1", [
+          missionId,
+          text,
+        ]);
+        await client.query(
+          "INSERT INTO messages(id,conversation_id,mission_id,role,content) VALUES($1,$2,$3,'assistant',$4)",
+          [randomUUID(), id, missionId, text],
+        );
+        await client.query('UPDATE conversations SET version=version+1 WHERE id=$1', [id]);
+        await appendEvent(client, missionId, 'mission.completed', {
+          message: 'Demande de configuration traitée.',
+          simulated: false,
+        });
+        created.status = 'succeeded';
+        created.result = text;
+      }
+      if (runtime)
+        await new HarnessRepository(this.pool).operation(
+          missionId,
+          'mission',
+          { mission_id: missionId },
+          client,
+        );
       return mission(created);
     });
   }
@@ -235,7 +271,19 @@ export class Repository {
       const row = (await client.query('SELECT * FROM missions WHERE id=$1 FOR UPDATE', [id]))
         .rows[0];
       if (!row) throw new DomainError(404, 'not_found', 'Mission introuvable.');
-      if (['queued', 'running'].includes(row.status)) {
+      if (
+        row.harness !== 'mock' &&
+        ['queued', 'running', 'cancel_requested'].includes(row.status)
+      ) {
+        await client.query(
+          "UPDATE missions SET status='cancel_requested',updated_at=now() WHERE id=$1",
+          [id],
+        );
+        row.status = 'cancel_requested';
+        await appendEvent(client, id, 'mission.cancel_requested', {
+          message: 'Arrêt demandé au moteur.',
+        });
+      } else if (['queued', 'running'].includes(row.status)) {
         await client.query(
           "UPDATE missions SET status='cancelled',lease_token=NULL,lease_until=NULL,updated_at=now() WHERE id=$1",
           [id],
@@ -252,7 +300,7 @@ export class Repository {
     return transaction(this.pool, async (client) => {
       const row = (
         await client.query(
-          `SELECT * FROM missions WHERE status='queued' OR (status='running' AND lease_until<now()) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`,
+          `SELECT * FROM missions WHERE harness='mock' AND (status='queued' OR (status='running' AND lease_until<now())) ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1`,
         )
       ).rows[0];
       if (!row) return null;

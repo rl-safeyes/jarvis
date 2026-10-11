@@ -1,4 +1,7 @@
 import Fastify from 'fastify';
+import { registerHarnessRoutes } from './harness-routes.ts';
+import { HarnessRepository } from '../../../packages/storage/src/harnesses.ts';
+import { SupervisorClient } from './supervisor-client.ts';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import staticFiles from '@fastify/static';
@@ -33,6 +36,9 @@ interface Options {
   secureCookie?: boolean;
   logger?: boolean;
   serveWeb?: boolean;
+  mode?: 'mock' | 'live';
+  supervisorUrl?: string;
+  supervisorToken?: string;
 }
 export async function createApp({
   repo,
@@ -41,6 +47,9 @@ export async function createApp({
   secureCookie = false,
   logger = false,
   serveWeb = false,
+  mode = 'mock',
+  supervisorUrl = 'http://supervisor:7080',
+  supervisorToken = '',
 }: Options) {
   const app = Fastify({
     logger: logger
@@ -84,30 +93,24 @@ export async function createApp({
     if (error instanceof DomainError)
       return reply.code(error.status).send({ error: { code: error.code, message: error.message } });
     if (error instanceof z.ZodError)
-      return reply
-        .code(400)
-        .send({
-          error: {
-            code: 'invalid_request',
-            message: 'Certains champs de la demande sont invalides.',
-          },
-        });
+      return reply.code(400).send({
+        error: {
+          code: 'invalid_request',
+          message: 'Certains champs de la demande sont invalides.',
+        },
+      });
     const status =
       typeof error === 'object' && error !== null && 'statusCode' in error
         ? Number(error.statusCode)
         : 500;
     if (status >= 400 && status < 500)
-      return reply
-        .code(status)
-        .send({
-          error: {
-            code: status === 429 ? 'rate_limited' : 'invalid_request',
-            message:
-              status === 429
-                ? 'Trop de tentatives. Réessayez dans une minute.'
-                : 'Requête invalide.',
-          },
-        });
+      return reply.code(status).send({
+        error: {
+          code: status === 429 ? 'rate_limited' : 'invalid_request',
+          message:
+            status === 429 ? 'Trop de tentatives. Réessayez dans une minute.' : 'Requête invalide.',
+        },
+      });
     request.log.error({ err: error }, 'Request failed');
     return reply
       .code(500)
@@ -141,7 +144,7 @@ export async function createApp({
       return {
         authenticated: true,
         csrf_token: csrfToken,
-        mode: 'mock',
+        mode,
         expires_at: expiresAt.toISOString(),
       };
     },
@@ -149,7 +152,7 @@ export async function createApp({
   app.get('/api/v1/auth/session', async (request) => ({
     authenticated: true,
     csrf_token: request.ownerSession!.csrf_token,
-    mode: 'mock',
+    mode,
     expires_at: request.ownerSession!.expires_at.toISOString(),
   }));
   app.post('/api/v1/auth/logout', async (request, reply) => {
@@ -157,7 +160,14 @@ export async function createApp({
     reply.clearCookie('jarvis_session', { path: '/' });
     return reply.code(204).send();
   });
-  app.get('/api/v1/agents', async () => ({ agents, departments, mode: 'mock' }));
+  const harnessRepo = new HarnessRepository(repo.pool);
+  await harnessRepo.seed();
+  await registerHarnessRoutes(
+    app,
+    harnessRepo,
+    new SupervisorClient(supervisorUrl, supervisorToken),
+  );
+  app.get('/api/v1/agents', async () => ({ agents, departments, mode }));
   app.get('/api/v1/conversations', async () => ({ conversations: await repo.listConversations() }));
   app.post('/api/v1/conversations', async (request, reply) => {
     const input = createConversationSchema.parse(request.body);

@@ -1,4 +1,4 @@
-name: Foundation checks
+name: Jarvis checks
 on:
   push:
   pull_request:
@@ -21,6 +21,7 @@ jobs:
       DATABASE_URL: postgresql://jarvis:jarvis-ci-only@127.0.0.1:5432/jarvis
       JARVIS_OWNER_PASSWORD: jarvis-ci-owner-password-only
       E2E_OWNER_PASSWORD: jarvis-ci-owner-password-only
+      HARNESS_MODE: mock
       APP_ORIGIN: http://localhost:5173
     steps:
       - uses: actions/checkout@v4
