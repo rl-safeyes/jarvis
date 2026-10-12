@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { ClaudeAuth, claudeEnvironment } from './claude-auth.mjs';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { mkdir, readFile, writeFile, rename, readdir, unlink } from 'node:fs/promises';
@@ -68,7 +69,11 @@ class CodexRpc {
       ],
       {
         cwd: '/workspace',
-        env: { PATH: process.env.PATH, LANG: 'C.UTF-8', SSL_CERT_FILE: '/etc/ssl/certs/ca-certificates.crt' },
+        env: {
+          PATH: process.env.PATH,
+          LANG: 'C.UTF-8',
+          SSL_CERT_FILE: '/etc/ssl/certs/ca-certificates.crt',
+        },
         stdio: ['pipe', 'pipe', 'pipe'],
       },
     );
@@ -183,7 +188,16 @@ async function credentials() {
     return null;
   }
 }
+const claudeAuth = new ClaudeAuth({
+  readCredentials: credentials,
+  saveCredentials,
+  clearCredentials: () =>
+    unlink(`${stateDir}/credential.json`).catch((error) => {
+      if (error.code !== 'ENOENT') throw error;
+    }),
+});
 async function status() {
+  if (provider === 'claude-code') return claudeAuth.status();
   if (provider === 'codex') {
     const value = await (await codex()).request('account/read', { refreshToken: false });
     return {
@@ -248,7 +262,10 @@ async function runCodex(run, input) {
 async function runCli(run, input) {
   const auth = await credentials();
   if (!auth) throw new Error('auth_required');
-  const env = { PATH: process.env.PATH, LANG: 'C.UTF-8', JARVIS_HARNESS: provider };
+  const env =
+    provider === 'claude-code'
+      ? claudeEnvironment()
+      : { PATH: process.env.PATH, LANG: 'C.UTF-8', JARVIS_HARNESS: provider };
   // Provider config lives in the dedicated account volume; no host environment is inherited.
   let command, args;
   if (provider === 'claude-code') {
@@ -268,14 +285,26 @@ async function runCli(run, input) {
       'dontAsk',
       '--max-turns',
       '1',
-      '--max-budget-usd',
-      '0.50',
       '--no-session-persistence',
       '--system-prompt',
       input.instructions,
     ];
-    env.ANTHROPIC_API_KEY = auth.secret;
-    env.CLAUDE_CONFIG_DIR = '/home/node/.claude';
+    if (auth.method === 'claude_subscription') {
+      if (!(await claudeAuth.nativeStatus())) throw new Error('auth_required');
+      args.push(
+        '--settings',
+        JSON.stringify({ forceLoginMethod: 'claudeai', disableAllHooks: true }),
+      );
+    } else {
+      if (!auth.secret) throw new Error('auth_required');
+      env.ANTHROPIC_API_KEY = auth.secret;
+      args.push(
+        '--max-budget-usd',
+        '0.50',
+        '--settings',
+        JSON.stringify({ disableAllHooks: true }),
+      );
+    }
   } else {
     command = 'opencode';
     args = ['run', '--format', 'json', '--model', input.model];
@@ -372,12 +401,21 @@ async function dispatch(input) {
     case 'status':
       return status();
     case 'models': {
+      if (provider === 'claude-code')
+        return {
+          models: [
+            { id: 'sonnet', name: 'Claude Sonnet' },
+            { id: 'opus', name: 'Claude Opus' },
+          ],
+        };
       if (provider !== 'codex') return { models: [] };
       const r = await (await codex()).request('model/list', {});
       return { models: (r.data ?? []).map((m) => ({ id: m.model, name: m.displayName })) };
     }
     case 'connect': {
       if (active) throw new Error('account_busy');
+      if (provider === 'claude-code' && input.method === 'claude_subscription')
+        return claudeAuth.begin();
       if (provider === 'codex') {
         if (login) return { login };
         const client = await codex();
@@ -402,8 +440,14 @@ async function dispatch(input) {
         throw new Error('unsupported_auth');
       if (provider === 'opencode' && !['openai', 'anthropic'].includes(input.provider))
         throw new Error('provider_required');
+      if (provider === 'claude-code') await claudeAuth.disconnect();
       await saveCredentials({ secret: input.secret, provider: input.provider });
       return { login: null };
+    }
+    case 'complete_login': {
+      if (provider !== 'claude-code') throw new Error('unsupported_auth');
+      if (active) throw new Error('account_busy');
+      return claudeAuth.complete(input.loginId, input.code);
     }
     case 'disconnect': {
       if (active) {
@@ -417,7 +461,8 @@ async function dispatch(input) {
         if (login) await c.request('account/login/cancel', { loginId: login.loginId });
         await c.request('account/logout', {});
         login = null;
-      } else await unlink(`${stateDir}/credential.json`).catch(() => {});
+      } else if (provider === 'claude-code') await claudeAuth.disconnect();
+      else await unlink(`${stateDir}/credential.json`).catch(() => {});
       return { state: 'disconnected' };
     }
     case 'start': {
@@ -439,7 +484,7 @@ async function dispatch(input) {
         if (existing.hash && existing.hash !== key) throw new Error('idempotency_conflict');
         return existing;
       }
-      if (active) return { state: 'busy' };
+      if (active || (provider === 'claude-code' && claudeAuth.session)) return { state: 'busy' };
       const run = { id: input.id, hash: key, state: 'running', text: null };
       active = { id: input.id, cancelRequested: false };
       ledger.set(input.id, run);
@@ -488,7 +533,16 @@ http
       res.end(JSON.stringify(await task));
     } catch (error) {
       res.statusCode = 400;
-      const allowed = ['runtime_tls_error', 'runtime_network_error', 'runtime_provider_refused'];
+      const allowed = [
+        'runtime_tls_error',
+        'runtime_network_error',
+        'runtime_provider_refused',
+        'auth_failed',
+        'auth_session_expired',
+        'invalid_auth_code',
+        'auth_code_submitted',
+        'account_busy',
+      ];
       res.end(
         JSON.stringify({
           error_code: allowed.includes(error?.message) ? error.message : 'runtime_unavailable',

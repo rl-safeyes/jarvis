@@ -142,18 +142,53 @@ export function HarnessConnectionHelp({ harness, name }: { harness: HarnessId; n
           )}
           {harness === 'claude-code' && (
             <section>
-              <h3>2. Obtenir une clé API Anthropic</h3>
+              <h3>2. Se connecter avec votre abonnement Claude</h3>
               <p className="harness-help-callout">
-                Dans cette version de Jarvis, Claude Code se connecte avec une clé API Anthropic. La
-                connexion via un abonnement Claude Pro / Max n’est pas encore intégrée. Les appels
-                sont facturés sur votre compte API Anthropic.
+                Choisissez « Se connecter avec mon abonnement Claude » pour utiliser l’accès Claude
+                Code de votre abonnement. Aucune clé API n’est nécessaire pour ce parcours.
               </p>
-              <ApiKeySteps provider="Anthropic" />
+              <ol>
+                <li>
+                  Cliquez sur « Se connecter avec mon abonnement Claude », puis sur « Ouvrir la
+                  connexion sécurisée ».
+                </li>
+                <li>
+                  Sur le site Claude, connectez-vous au compte portant votre abonnement avec accès
+                  Claude Code, puis autorisez Claude Code.
+                </li>
+                <li>
+                  Si Claude affiche un code, copiez-le en entier, revenez dans Jarvis et collez-le
+                  dans « Code de connexion Claude ». Cliquez sur « Valider le code Claude ».
+                </li>
+                <li>
+                  Cliquez sur « Vérifier la connexion ». Jarvis doit afficher « Mode actif :
+                  abonnement Claude ». Choisissez ensuite un modèle tel que « sonnet » et testez le
+                  profil.
+                </li>
+              </ol>
               <p>
-                <ExternalLink href="https://platform.claude.com/docs/en/get-api-key">
-                  Guide officiel : créer une clé Anthropic
+                Le code expire : si le parcours est interrompu, relancez la connexion et utilisez le
+                nouveau lien. Votre quota est partagé avec vos autres usages Claude Code. Si le
+                quota est atteint, Jarvis ne bascule pas automatiquement sur une clé API.
+              </p>
+              <p>
+                <ExternalLink href="https://code.claude.com/docs/en/authentication">
+                  Documentation officielle de connexion Claude Code
                 </ExternalLink>
               </p>
+              <details>
+                <summary>Autre possibilité : clé API Anthropic (facturation API)</summary>
+                <p>
+                  Cette option utilise votre compte API Anthropic et sa facturation. Elle remplace
+                  la connexion à l’abonnement pour ce compte Jarvis.
+                </p>
+                <ApiKeySteps provider="Anthropic" />
+                <p>
+                  <ExternalLink href="https://platform.claude.com/docs/en/get-api-key">
+                    Guide officiel : créer une clé Anthropic
+                  </ExternalLink>
+                </p>
+              </details>
             </section>
           )}
           {harness === 'opencode' && (

@@ -6,7 +6,7 @@ ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 ARG HARNESS_PACKAGE=@openai/codex@0.161.0
 RUN npm install -g "${HARNESS_PACKAGE}" && npm cache clean --force
 WORKDIR /runtime
-COPY runtime.mjs request.mjs ./
+COPY runtime.mjs request.mjs claude-auth.mjs ./
 RUN mkdir /workspace && chown node:node /workspace
 USER node
 WORKDIR /workspace

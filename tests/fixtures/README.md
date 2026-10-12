@@ -60,3 +60,16 @@ node tests/fixtures/check-development-protocol.mjs
 La première recette utilise Docker pour vérifier les vrais outils, les montages/permissions, les chemins, la reprise idempotente d’une écriture, le patch figé, les tests de référence et l’annulation durable. La seconde connecte uniquement le pair factice, passe par Temporal et vérifie le développement/review, le téléchargement authentifié et l’arrêt. Le pair ne contacte aucun fournisseur.
 
 Les tests navigateur `tests/e2e/development.spec.ts` utilisent `E2E_DEVELOPMENT=1`, `E2E_BASE_URL=http://localhost:3304` et `E2E_OWNER_PASSWORD` pour cette pile uniquement. Après la recette, arrêter la pile et les conteneurs labellisés `jarvis.owner=jarvis-development-fixture`. Les journaux/volumes restent disponibles pour diagnostic.
+
+
+## Recette connexion Claude par abonnement
+
+Après installation de la recette Claude `2.1.296-v3` :
+
+```bash
+node tests/fixtures/check-claude-subscription.mjs
+```
+
+La recette monte la CLI factice `claude.mjs` dans un conteneur jetable avec réseau désactivé et un répertoire de compte temporaire. Elle vérifie l’aller-retour du code, le refus d’une autre session, l’inférence en mode abonnement sans clé API, l’échec de quota sans repli API, la persistance après redémarrage, le changement explicite vers l’API et la déconnexion. Le conteneur et son répertoire temporaire sont supprimés à la fin. `CLAUDE_FIXTURE_IMAGE` permet de choisir une autre image de base compatible ; aucun compte réel n’est monté.
+
+Les tests unitaires `claude-auth.test.mjs` couvrent aussi expiration, URL officielle, code incorrect et refus d’une authentification Console présentée comme abonnement. Ces résultats ne remplacent pas un test de profil avec le véritable abonnement du propriétaire.

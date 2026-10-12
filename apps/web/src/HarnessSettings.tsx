@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import { api } from './api.ts';
 import { HarnessConnectionHelp } from './HarnessConnectionHelp.tsx';
-import type { HarnessDashboard, HarnessId } from '../../../packages/contracts/src/harnesses.ts';
+import type {
+  HarnessDashboard,
+  HarnessId,
+  HarnessLogin,
+  HarnessAccountStatus,
+} from '../../../packages/contracts/src/harnesses.ts';
 
 export function HarnessSettings({ onChange }: { onChange: () => void }) {
   const [data, setData] = useState<HarnessDashboard | null>(null);
@@ -15,11 +20,9 @@ export function HarnessSettings({ onChange }: { onChange: () => void }) {
   const [model, setModel] = useState('');
   const [profileName, setProfileName] = useState('Mon profil');
   const [models, setModels] = useState<{ id: string; name: string }[]>([]);
-  const [login, setLogin] = useState<{
-    verificationUrl: string;
-    userCode: string;
-    expires_at: string;
-  } | null>(null);
+  const [login, setLogin] = useState<HarnessLogin | null>(null);
+  const [loginCode, setLoginCode] = useState('');
+  const [authMethod, setAuthMethod] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const refresh = async () => {
     const d = await api<HarnessDashboard>('/harnesses');
@@ -48,8 +51,15 @@ export function HarnessSettings({ onChange }: { onChange: () => void }) {
     }
   }
   async function checkAccount() {
-    const r = await api<{ state: string; login: typeof login }>(`/accounts/${selected}/status`);
+    const r = await api<HarnessAccountStatus>(`/accounts/${selected}/status`);
     setLogin(r.login ?? null);
+    setAuthMethod(r.auth_method ?? null);
+    if (r.error_code)
+      throw new Error(
+        r.error_code === 'auth_expired'
+          ? 'La connexion Claude a expiré. Relancez la connexion à votre abonnement.'
+          : 'La connexion Claude a échoué. Relancez-la et utilisez le code du nouveau lien.',
+      );
     if (r.state === 'ready') {
       const m = await api<{ models: typeof models }>(`/accounts/${selected}/models`);
       setModels(m.models);
@@ -59,6 +69,8 @@ export function HarnessSettings({ onChange }: { onChange: () => void }) {
   }
   useEffect(() => {
     setLogin(null);
+    setLoginCode('');
+    setAuthMethod(null);
     setModels([]);
     setSecret('');
     setModel('');
@@ -171,31 +183,89 @@ export function HarnessSettings({ onChange }: { onChange: () => void }) {
         </label>
         {account && (
           <div>
-            {account.harness === 'codex' && (
+            {(account.harness === 'codex' || account.harness === 'claude-code') && (
               <button
                 className="secondary"
                 disabled={busy}
                 onClick={() =>
                   void action(async () => {
                     const r = await api<{ login: typeof login }>(`/accounts/${selected}/connect`, {
-                      method: 'device',
+                      method: account.harness === 'claude-code' ? 'claude_subscription' : 'device',
                     });
                     setLogin(r.login);
+                    setLoginCode('');
+                    setAuthMethod(null);
                   }, 'Connexion démarrée. Suivez le lien fournisseur.')
                 }
               >
-                Se connecter avec ChatGPT
+                {account.harness === 'claude-code'
+                  ? 'Se connecter avec mon abonnement Claude'
+                  : 'Se connecter avec ChatGPT'}
               </button>
+            )}
+            {account.harness === 'claude-code' && (
+              <p className="muted">
+                La connexion à l’abonnement ouvre le site Claude et remplace la clé API de ce
+                compte.
+                {authMethod === 'claude_subscription' && (
+                  <strong> Mode actif : abonnement Claude.</strong>
+                )}
+                {authMethod === 'api_key' && (
+                  <strong> Mode actif : facturation API Anthropic.</strong>
+                )}
+              </p>
             )}
             {login && (
               <div className="auth-card">
-                <p>Ouvrez le site fournisseur et saisissez ce code :</p>
-                <strong>{login.userCode}</strong>
+                {login.kind === 'claude_subscription' ? (
+                  <p>
+                    Ouvrez le lien, connectez-vous au compte portant votre abonnement Claude et
+                    autorisez Claude Code. Si le site affiche un code, copiez-le ci-dessous.
+                  </p>
+                ) : (
+                  <>
+                    <p>Ouvrez le site fournisseur et saisissez ce code :</p>
+                    <strong>{login.userCode}</strong>
+                  </>
+                )}
                 <p>
                   <a href={login.verificationUrl} target="_blank" rel="noreferrer">
                     Ouvrir la connexion sécurisée
                   </a>
                 </p>
+                {login.kind === 'claude_subscription' && (
+                  <form
+                    className="harness-form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const code = loginCode.trim();
+                      const loginId = login.loginId;
+                      setLoginCode('');
+                      void action(async () => {
+                        await api(`/accounts/${selected}/connect/complete`, { loginId, code });
+                        await checkAccount();
+                      }, 'Code transmis. Si le compte est connecté, créez puis testez un profil.');
+                    }}
+                  >
+                    <label>
+                      Code de connexion Claude
+                      <input
+                        type="password"
+                        autoComplete="off"
+                        autoCapitalize="none"
+                        spellCheck={false}
+                        value={loginCode}
+                        onChange={(e) => setLoginCode(e.target.value)}
+                        required
+                        minLength={10}
+                        maxLength={4096}
+                      />
+                    </label>
+                    <button className="secondary" disabled={busy || !loginCode.trim()}>
+                      Valider le code Claude
+                    </button>
+                  </form>
+                )}
                 <p>À terminer avant {new Date(login.expires_at).toLocaleTimeString('fr-FR')}.</p>
               </div>
             )}
@@ -205,6 +275,9 @@ export function HarnessSettings({ onChange }: { onChange: () => void }) {
                 e.preventDefault();
                 const value = secret;
                 setSecret('');
+                setLogin(null);
+                setLoginCode('');
+                setAuthMethod(null);
                 void action(
                   () =>
                     api(`/accounts/${selected}/connect`, {
@@ -212,7 +285,7 @@ export function HarnessSettings({ onChange }: { onChange: () => void }) {
                       secret: value,
                       ...(account.harness === 'opencode' ? { provider } : {}),
                     }),
-                  'Clé enregistrée. Créez et testez un profil pour vérifier son accès.',
+                  'Clé enregistrée : facturation API activée pour ce compte. Vérifiez la connexion puis testez un profil.',
                 );
               }}
             >
@@ -226,7 +299,7 @@ export function HarnessSettings({ onChange }: { onChange: () => void }) {
                 </label>
               )}
               <label>
-                Clé API {account.harness === 'codex' ? '(autre mode de connexion)' : ''}
+                Clé API {account.harness !== 'opencode' ? '(facturation API séparée)' : ''}
                 <input
                   type="password"
                   autoComplete="off"
@@ -259,6 +332,8 @@ export function HarnessSettings({ onChange }: { onChange: () => void }) {
                   void action(async () => {
                     await api(`/accounts/${selected}/disconnect`, {});
                     setLogin(null);
+                    setAuthMethod(null);
+                    setLoginCode('');
                   }, 'Compte déconnecté.')
                 }
               >

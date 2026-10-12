@@ -13,7 +13,8 @@ const recipes = {
   'claude-code': ['@anthropic-ai/claude-code@2.1.296', '2.1.296'],
   opencode: ['opencode-ai@1.18.35', '1.18.35'],
 };
-const imageName = (h) => `${prefix}-harness-${h}:${recipes[h][1]}-v2`;
+const imageName = (h) =>
+  `${prefix}-harness-${h}:${recipes[h][1]}-${h === 'claude-code' ? 'v3' : 'v2'}`;
 const building = new Map();
 const creating = new Map();
 function docker(args, input, timeout = 60000) {
@@ -169,7 +170,16 @@ async function dispatch(input) {
   )
     throw new Error('runtime_version_changed');
   const name = await ensureAccount(h, input.account_id);
-  const allowed = ['status', 'connect', 'disconnect', 'models', 'start', 'run', 'cancel'];
+  const allowed = [
+    'status',
+    'connect',
+    'complete_login',
+    'disconnect',
+    'models',
+    'start',
+    'run',
+    'cancel',
+  ];
   if (!allowed.includes(input.action)) throw new Error('unknown_action');
   // Native runtimes expose no network port: all access uses this fixed stdin bridge.
   const response = JSON.parse(
@@ -199,7 +209,16 @@ http
       res.end(JSON.stringify(await dispatch(JSON.parse(body))));
     } catch (error) {
       res.statusCode = 503;
-      const allowed = ['runtime_tls_error', 'runtime_network_error', 'runtime_provider_refused'];
+      const allowed = [
+        'runtime_tls_error',
+        'runtime_network_error',
+        'runtime_provider_refused',
+        'auth_failed',
+        'auth_session_expired',
+        'invalid_auth_code',
+        'auth_code_submitted',
+        'account_busy',
+      ];
       res.end(
         JSON.stringify({
           error_code: allowed.includes(error?.message) ? error.message : 'runtime_unavailable',

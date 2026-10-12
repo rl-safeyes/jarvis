@@ -25,6 +25,7 @@ export const agentConfigSchema = selectionSchema.extend({
 });
 export const connectSchema = z.discriminatedUnion('method', [
   z.object({ method: z.literal('device') }).strict(),
+  z.object({ method: z.literal('claude_subscription') }).strict(),
   z
     .object({
       method: z.literal('api_key'),
@@ -33,6 +34,30 @@ export const connectSchema = z.discriminatedUnion('method', [
     })
     .strict(),
 ]);
+export const completeLoginSchema = z
+  .object({
+    loginId: z.uuid(),
+    code: z
+      .string()
+      .trim()
+      .min(10)
+      .max(4096)
+      .regex(/^[a-zA-Z0-9._~+/=-]+(?:#[a-zA-Z0-9._~+/=-]+)?$/),
+  })
+  .strict();
+export interface HarnessLogin {
+  kind?: 'claude_subscription';
+  loginId?: string;
+  verificationUrl: string;
+  userCode?: string;
+  expires_at: string;
+}
+export interface HarnessAccountStatus {
+  state: string;
+  auth_method?: string | null;
+  login: HarnessLogin | null;
+  error_code?: string | null;
+}
 export interface RuntimeSnapshot {
   profile_id: string;
   account_id: string;

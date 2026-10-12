@@ -7,6 +7,7 @@ import {
   selectionSchema,
   agentConfigSchema,
   connectSchema,
+  completeLoginSchema,
   harnessId,
 } from '../../../packages/contracts/src/harnesses.ts';
 import { HarnessRepository } from '../../../packages/storage/src/harnesses.ts';
@@ -49,11 +50,14 @@ export async function registerHarnessRoutes(
         await c.query('SELECT * FROM harness_accounts WHERE id=$1 FOR UPDATE', [accountId])
       ).rows[0];
       if (!a) throw new DomainError(404, 'account_missing', 'Compte introuvable.');
-      if (b.method === 'device' && a.harness !== 'codex')
+      if (
+        (b.method === 'device' && a.harness !== 'codex') ||
+        (b.method === 'claude_subscription' && a.harness !== 'claude-code')
+      )
         throw new DomainError(
           400,
           'unsupported_auth',
-          'Ce moteur utilise actuellement une clé API dans Jarvis.',
+          'Ce mode de connexion n’est pas disponible pour ce moteur.',
         );
       const result = await supervisor.call({
         action: 'connect',
@@ -63,8 +67,28 @@ export async function registerHarnessRoutes(
       });
       await c.query('UPDATE harness_accounts SET state=$2,revision=revision+1 WHERE id=$1', [
         a.id,
-        b.method === 'device' ? 'connecting' : 'ready',
+        b.method === 'api_key' ? 'ready' : 'connecting',
       ]);
+      return result;
+    });
+  });
+  app.post('/api/v1/accounts/:id/connect/complete', async (req) => {
+    const body = completeLoginSchema.parse(req.body);
+    const accountId = id(req.params);
+    return transaction(repo.pool, async (c) => {
+      const a = (
+        await c.query('SELECT * FROM harness_accounts WHERE id=$1 FOR UPDATE', [accountId])
+      ).rows[0];
+      if (!a) throw new DomainError(404, 'account_missing', 'Compte introuvable.');
+      if (a.harness !== 'claude-code' || a.state !== 'connecting')
+        throw new DomainError(409, 'login_not_pending', 'Démarrez une nouvelle connexion Claude.');
+      const result = await supervisor.call({
+        action: 'complete_login',
+        harness: a.harness,
+        account_id: a.id,
+        ...body,
+      });
+      await c.query('UPDATE harness_accounts SET state=$2 WHERE id=$1', [a.id, result.state]);
       return result;
     });
   });

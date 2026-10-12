@@ -11,7 +11,7 @@ Mise à jour : 12 octobre 2026. Le premier socle simulé est conservé pour les 
 | Conversations | Envoi idempotent, contrôle de version, historique PostgreSQL, événements SSE |
 | Runtimes Docker | Recettes épinglées pour Codex, Claude Code et OpenCode ; aucun emprunt de CLI ou de compte de l’hôte |
 | Premier démarrage | Codex et Claude Code installés par défaut ; moteurs initiaux sélectionnables via `JARVIS_INITIAL_HARNESSES` |
-| Connexion | Assistant PWA utilisable sans IA ; Codex par code ChatGPT ou clé API, Claude par clé Anthropic, OpenCode par clé OpenAI/Anthropic |
+| Connexion | Assistant PWA utilisable sans IA ; Codex par code ChatGPT ou clé API, Claude par abonnement (lien + code du CLI) ou clé Anthropic, OpenCode par clé OpenAI/Anthropic |
 | Profils | Plusieurs comptes et modèles, test réel obligatoire avant sélection, défaut global et affectation par agent |
 | Héritage | Jarvis et spécialistes sans choix explicite utilisent le défaut ; snapshots immuables par mission |
 | Fiches d’agents | Registre PostgreSQL, départements, création par chat ou Organisation, instructions et profils versionnés |
@@ -69,3 +69,12 @@ Les décisions du planificateur utilisent trois objets JSON validés (`reply`, `
 2. Compléter streaming, états de quota/reconnexion, budgets, sessions et gestion des versions de runtime.
 3. Compléter les outils : autres dépôts, connexion GitHub, nouvelles dépendances et navigateur de test.
 4. Ajouter développement/review, préproduction et publication avec retour arrière selon le risque.
+
+
+## Validation du parcours abonnement Claude
+
+- 13 tests unitaires et 36 tests d’intégration PostgreSQL réussis, dont expiration, invalidation des profils, protection CSRF et séparation des modes de connexion.
+- Recette Docker avec CLI factice : connexion, inférence sans clé API, quota sans repli, redémarrage, passage explicite à l’API et déconnexion.
+- CLI Claude réelle `2.1.296` : création du lien d’abonnement officiel et annulation vérifiées dans un compte Docker vierge, sans connexion du propriétaire ni inférence.
+- Interface ordinateur et format mobile vérifiée avec réponses de connexion simulées, affichage du mode actif et traitement d’un code refusé.
+- App, superviseur et recette Claude `v3` déployés localement ; volumes de comptes et profil global conservés. Le propriétaire doit terminer le parcours Claude et tester son profil pour qualifier l’accès réel à son abonnement.

@@ -19,7 +19,7 @@
     "start": "tsx --env-file=.env apps/api/src/server.ts",
     "db:migrate": "tsx --env-file=.env packages/storage/src/migrate-cli.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/unit/*.test.ts",
+    "test": "tsx --test tests/unit/*.test.ts tests/unit/*.test.mjs",
     "test:integration": "tsx --test --test-concurrency=1 tests/integration/*.test.ts",
     "test:e2e": "playwright test",
     "check": "npm run typecheck && npm test",

@@ -152,3 +152,12 @@ Pour chaque intégration : connexion sur serveur, requête réelle minimale, str
 - Profil indisponible, capacité manquante ou suppression d’un profil référencé : blocage expliqué et action de correction accessible.
 - Panne pendant installation ou changement de configuration concurrent : reprise idempotente, contrôle de révision et absence de double promotion.
 - Redémarrage/recréation des conteneurs : comptes conservés par stockage protégé ; reconnexion demandée si le fournisseur a révoqué la session.
+
+
+### Parcours Claude personnel implémenté — 12 octobre 2026
+
+Le runtime Docker du compte lance le CLI officiel `claude auth login --claudeai`. La PWA présente son URL de connexion et un champ de retour du code. Le CLI effectue l’échange OAuth et conserve sa session dans le volume du compte. Jarvis n’implémente pas un client OAuth tiers et ne transmet pas ce jeton directement à l’API ni au SDK.
+
+Chaque tentative possède un identifiant, expire après dix minutes et refuse un code pour une autre tentative. Les sorties natives, les codes et les URLs OAuth ne sont pas journalisés. Une validation du CLI `auth status` impose `loggedIn=true` et `authMethod=claude.ai`. Le mode de facturation actif est affiché dans les réglages. Passer à l’abonnement retire la clé API précédemment enregistrée et impose une nouvelle validation des profils. Les exécutions par abonnement n’héritent d’aucun environnement API et ne basculent pas automatiquement sur une clé API si le quota est atteint.
+
+Les tests automatisés utilisent une CLI factice pour couvrir validation, expiration, déconnexion, persistance et séparation des modes ; la validation du véritable compte et des quotas requiert la connexion du propriétaire puis un test de profil réel.

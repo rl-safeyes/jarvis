@@ -15,6 +15,15 @@ export class SupervisorClient {
       if (!r.ok) {
         const data = await r.json();
         const messages: Record<string, string> = {
+          auth_failed:
+            'La connexion Claude a échoué. Relancez-la et utilisez le code du nouveau lien.',
+          auth_session_expired:
+            'Cette connexion Claude a expiré ou a été remplacée. Relancez la connexion.',
+          invalid_auth_code:
+            'Le code Claude est invalide. Copiez le code complet affiché après la connexion.',
+          auth_code_submitted: 'Ce code a déjà été transmis. Cliquez sur Vérifier la connexion.',
+          account_busy:
+            'Ce compte exécute une demande. Attendez sa fin avant de changer sa connexion.',
           runtime_tls_error:
             'Le moteur ne peut pas vérifier le certificat HTTPS du fournisseur. Vérifiez les certificats de son image Docker.',
           runtime_network_error:

@@ -11,7 +11,12 @@ import {
 } from '../../contracts/src/harnesses.ts';
 export const catalog = [
   { id: 'codex', name: 'Codex', version: '0.161.0', auth_methods: ['device', 'api_key'] },
-  { id: 'claude-code', name: 'Claude Code', version: '2.1.296', auth_methods: ['api_key'] },
+  {
+    id: 'claude-code',
+    name: 'Claude Code',
+    version: '2.1.296',
+    auth_methods: ['claude_subscription', 'api_key'],
+  },
   { id: 'opencode', name: 'OpenCode', version: '1.18.35', auth_methods: ['api_key'] },
 ] as const;
 export const fingerprint = (value: unknown) =>

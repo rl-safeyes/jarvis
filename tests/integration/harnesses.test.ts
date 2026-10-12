@@ -175,3 +175,137 @@ test('test operation is bound to the account revision; idempotency keys cannot c
   const b = await ready();
   await assert.rejects(repo.test(opId, b.profile.id), { code: 'idempotency_conflict' });
 });
+
+test('Claude subscription login is authenticated, CSRF protected and invalidates the old tested profile', async (t) => {
+  const { createServer } = await import('node:http');
+  const calls: Record<string, unknown>[] = [];
+  const loginId = randomUUID();
+  const server = createServer(async (req, res) => {
+    let raw = '';
+    for await (const chunk of req) raw += chunk;
+    const body = JSON.parse(raw);
+    calls.push(body);
+    res.setHeader('Content-Type', 'application/json');
+    res.end(
+      JSON.stringify(
+        body.action === 'connect'
+          ? {
+              state: 'connecting',
+              login: {
+                kind: 'claude_subscription',
+                loginId,
+                verificationUrl: 'https://claude.com/cai/oauth/authorize?state=fixture',
+                expires_at: new Date(Date.now() + 60000).toISOString(),
+              },
+            }
+          : { state: 'ready', auth_method: 'claude_subscription', login: null },
+      ),
+    );
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string');
+  const app = await createApp({
+    repo: live,
+    password: 'integration-password-only-123',
+    origin: 'http://localhost:5173',
+    mode: 'live',
+    supervisorUrl: `http://127.0.0.1:${address.port}`,
+    supervisorToken: 'fixture',
+  });
+  t.after(() => app.close());
+  const { account, profile } = await ready('claude-code');
+  const url = `/api/v1/accounts/${account.id}/connect`;
+  assert.equal(
+    (
+      await app.inject({
+        method: 'POST',
+        url,
+        headers: { origin: 'http://localhost:5173' },
+        payload: { method: 'claude_subscription' },
+      })
+    ).statusCode,
+    401,
+  );
+  const session = await app.inject({
+    method: 'POST',
+    url: '/api/v1/auth/login',
+    headers: { origin: 'http://localhost:5173' },
+    payload: { password: 'integration-password-only-123' },
+  });
+  const headers = {
+    origin: 'http://localhost:5173',
+    cookie: session.cookies.map((c) => `${c.name}=${c.value}`).join('; '),
+    'x-csrf-token': session.json().csrf_token,
+  };
+  const complete = { loginId, code: 'fixture-code#fixture-state' };
+  assert.equal(
+    (
+      await app.inject({
+        method: 'POST',
+        url: url + '/complete',
+        headers: { cookie: headers.cookie, origin: headers.origin },
+        payload: complete,
+      })
+    ).statusCode,
+    403,
+  );
+  assert.equal(
+    (await app.inject({ method: 'POST', url: url + '/complete', headers, payload: complete }))
+      .statusCode,
+    409,
+  );
+  const login = await app.inject({
+    method: 'POST',
+    url,
+    headers,
+    payload: { method: 'claude_subscription' },
+  });
+  assert.equal(login.statusCode, 200);
+  assert.equal(login.json().login.loginId, loginId);
+  assert.equal((await repo.account(account.id)).state, 'connecting');
+  assert.equal(
+    (await repo.dashboard()).profiles.find((p) => p.id === profile.id)!.state,
+    'untested',
+  );
+  const beforeInvalid = calls.length;
+  assert.equal(
+    (
+      await app.inject({
+        method: 'POST',
+        url: url + '/complete',
+        headers,
+        payload: { loginId, code: 'bad\ncommand' },
+      })
+    ).statusCode,
+    400,
+  );
+  assert.equal(calls.length, beforeInvalid);
+  const connected = await app.inject({
+    method: 'POST',
+    url: url + '/complete',
+    headers,
+    payload: complete,
+  });
+  assert.equal(connected.statusCode, 200);
+  assert.equal(connected.json().auth_method, 'claude_subscription');
+  assert.equal((await repo.account(account.id)).state, 'ready');
+  assert.equal(
+    (await repo.dashboard()).profiles.find((p) => p.id === profile.id)!.state,
+    'untested',
+  );
+  assert.equal(calls.at(-1)!.action, 'complete_login');
+  const codex = await ready('codex');
+  assert.equal(
+    (
+      await app.inject({
+        method: 'POST',
+        url: `/api/v1/accounts/${codex.account.id}/connect`,
+        headers,
+        payload: { method: 'claude_subscription' },
+      })
+    ).statusCode,
+    400,
+  );
+});

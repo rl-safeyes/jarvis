@@ -31,12 +31,20 @@ Dans **Réglages** :
 | Harness | Version livrée | Connexions dans cette tranche |
 | --- | --- | --- |
 | Codex | 0.161.0 | Code d’appareil ChatGPT ou clé API OpenAI |
-| Claude Code | 2.1.296 | Clé API Anthropic ; connexion d’abonnement non intégrée |
+| Claude Code | 2.1.296 | Abonnement Claude via le parcours officiel du CLI, ou clé API Anthropic (facturation API) |
 | OpenCode | 1.18.35 | Clé API OpenAI ou Anthropic ; modèle au format `fournisseur/modèle` |
 
 Le parcours ChatGPT requiert que la connexion par code d’appareil soit autorisée pour le compte. Les méthodes réellement disponibles restent soumises au fournisseur. Un catalogue de modèles n’atteste pas des droits : seul le test réel valide le profil. Les appels API utilisent la facturation du compte choisi. Aucun compte, jeton ou exécutable n’est importé depuis le serveur hôte.
 
-L’interface reste accessible sans moteur connecté. Les clés se saisissent dans le formulaire dédié, jamais dans une conversation. Les clés Claude/OpenCode sont chiffrées dans le volume de compte ; Codex gère son cache natif protégé dans son propre volume. Conserver les volumes **et** `JARVIS_VAULT_KEY` pour restaurer les connexions. Ne pas remplacer cette clé sans migration des secrets. Une session révoquée chez le fournisseur exige une nouvelle connexion.
+L’interface reste accessible sans moteur connecté. Les clés se saisissent dans le formulaire dédié, jamais dans une conversation. Les clés Claude/OpenCode sont chiffrées dans le volume de compte ; Codex et la connexion Claude par abonnement gèrent leurs caches natifs protégés dans leurs volumes dédiés. Conserver les volumes **et** `JARVIS_VAULT_KEY` pour restaurer les connexions. Ne pas remplacer cette clé sans migration des secrets. Une session révoquée chez le fournisseur exige une nouvelle connexion.
+
+### Connexion Claude avec abonnement
+
+Dans le compte Claude Code, choisir **Se connecter avec mon abonnement Claude**, ouvrir le lien et autoriser Claude Code avec le compte Claude disposant de l’abonnement. Copier le code complet affiché par Claude dans **Code de connexion Claude**, puis **Valider le code Claude**. Cliquer sur **Vérifier la connexion** : le mode actif doit être **abonnement Claude**. Créer un profil (par exemple modèle `sonnet`), puis le tester avant toute affectation.
+
+La connexion est lancée par `claude auth login --claudeai` dans le conteneur du compte ; le CLI vérifie lui-même le retour OAuth. Aucun jeton de l’hôte n’est importé. Le code passe uniquement par un formulaire authentifié avec CSRF, lié à une session de connexion de dix minutes. Le CLI doit confirmer `authMethod=claude.ai` avant activation. En mode abonnement, aucun `ANTHROPIC_API_KEY` n’est transmis à l’inférence et aucun repli automatique sur la facturation API n’est effectué. Changer de mode invalide les profils précédemment testés. Le CLI gère le renouvellement de son cache natif ; une session révoquée nécessite une reconnexion. [Authentification officielle Claude Code](https://code.claude.com/docs/en/authentication).
+
+Cette évolution utilise la recette Claude `2.1.296-v3` (les autres harnesses gardent leur recette). Pour mettre à jour une installation existante, reconstruire l’app et le superviseur, demander l’installation Claude via l’API, puis recréer les conteneurs de comptes Claude **après la fin de leurs missions**, en conservant leurs volumes `/home/node` et la clé du coffre. Le superviseur refuse d’utiliser silencieusement un ancien conteneur avec la nouvelle image.
 
 ## Administrer par conversation
 
