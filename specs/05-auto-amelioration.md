@@ -81,4 +81,4 @@ Les performances d’un agent sont comparées avant et après sur des cas conser
 
 ## Première tranche livrée
 
-Le [lot outils de développement](11-outils-developpement.md) livre la copie isolée, le patch, les tests unitaires de référence et la revue indépendante. La publication, le classement automatique du risque, la préproduction et le retour arrière de la présente spécification restent à implémenter. Une revue favorable produit une proposition, jamais une release.
+Le [lot outils de développement](11-outils-developpement.md) livre la copie isolée, le patch, les tests unitaires de référence et la revue indépendante. La publication en PR, la préproduction éphémère et un premier classement déterministe sont livrés dans les lots 17 et 18. La release de production et le retour arrière restent à implémenter. Une revue favorable produit une proposition, jamais une release.

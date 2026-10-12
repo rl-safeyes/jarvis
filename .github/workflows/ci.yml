@@ -2,10 +2,14 @@ name: Jarvis checks
 on:
   push:
   pull_request:
+concurrency:
+  group: jarvis-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
   check:
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -25,6 +29,8 @@ jobs:
       APP_ORIGIN: http://localhost:5173
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -49,3 +55,28 @@ jobs:
         with:
           name: browser-test-results
           path: test-results/
+
+  preproduction:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Build immutable application image
+        run: docker build -f infra/Dockerfile -t jarvis-preproduction:check .
+      - name: Prepare synthetic database image
+        run: docker pull postgres:16-alpine
+      - name: Verify isolated preproduction
+        run: node scripts/preproduction.mjs "$(docker image inspect --format '{{.Id}}' jarvis-preproduction:check)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: preproduction-report
+          path: test-results/preproduction.json
+          if-no-files-found: error

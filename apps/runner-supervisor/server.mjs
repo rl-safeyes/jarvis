@@ -159,6 +159,7 @@ async function dispatch(input) {
       'github_repository',
       'github_snapshot',
       'github_publish',
+      'github_qualify',
     ].includes(input.action)
   ) {
     const result = await fetch(`${process.env.JARVIS_GITHUB_URL ?? 'http://github:7081'}/request`, {

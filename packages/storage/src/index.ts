@@ -85,6 +85,7 @@ export async function migrate(pool: Pool): Promise<void> {
       '003-agents',
       '004-development',
       '005-github',
+      '006-release-checks',
     ]) {
       if (
         (await client.query('SELECT version FROM schema_migrations WHERE version=$1', [version]))

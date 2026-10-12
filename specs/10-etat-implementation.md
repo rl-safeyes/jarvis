@@ -68,7 +68,7 @@ Les décisions du planificateur utilisent trois objets JSON validés (`reply`, `
 1. Qualifier les autres fournisseurs et ajouter les évaluations qualitatives des agents.
 2. Compléter streaming, états de quota/reconnexion, budgets, sessions et gestion des versions de runtime.
 3. Compléter les outils : projets aux dépendances différentes, nouvelles dépendances et navigateur de test.
-4. Ajouter préproduction, fusion, déploiement et retour arrière selon le risque.
+4. Ajouter approbation de release, fusion, déploiement et retour arrière selon le risque ; préproduction éphémère et classement documentaire livrés.
 
 
 ## Validation du parcours abonnement Claude
@@ -82,3 +82,5 @@ Les décisions du planificateur utilisent trois objets JSON validés (`reply`, `
 La dictée STT est implémentée via Speaches/faster-whisper CPU en français, avec capture PWA, relecture avant envoi et moteur Docker dédié. Voir [dictée vocale](16-voice-stt.md).
 
 Le lot [GitHub et PR](17-github-pull-requests.md) ajoute la connexion navigateur, le dépôt/branche configurables, la source distante figée et les PR en brouillon après validation explicite du propriétaire. Développement/review et préparation de PR sont disponibles ; la release autonome reste à livrer.
+
+Le lot [préproduction et risque](18-preproduction-et-risque.md) ajoute un pipeline Docker avec données synthétiques, un classement déterministe et des rapports persistants liés au commit et à la politique. Aucun merge ni déploiement automatique n’est encore activé.

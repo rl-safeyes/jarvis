@@ -6,6 +6,8 @@ async function fixture(page: any) {
   let settings: any = { repository: null, base_branch: 'main', revision: 0 };
   let publication: any = null;
   let posts = 0;
+  let release: any = null;
+  let qualifications = 0;
   const conversation = {
     id,
     title: 'Proposition GitHub',
@@ -82,9 +84,33 @@ async function fixture(page: any) {
       } else if (publication?.state === 'queued')
         publication = {
           state: 'succeeded',
-          result: { number: 12, url: 'https://github.com/owner/repo/pull/12', state: 'open' },
+          result: {
+            number: 12,
+            url: 'https://github.com/owner/repo/pull/12',
+            state: 'open',
+            commit: 'c'.repeat(40),
+          },
         };
       result = { publication };
+    } else if (p === `/development/${id}/release`) {
+      if (request.method() === 'POST') {
+        expect(request.postDataJSON()).toEqual({ digest, commit: 'c'.repeat(40) });
+        qualifications++;
+        release = {
+          state: 'passed',
+          commit: 'c'.repeat(40),
+          checked_at: new Date().toISOString(),
+          policy_version: 'release-readiness-v1',
+          blockers: [],
+          risk: { level: 'low', reasons: ['Documentation uniquement'], files: 1, lines: 2 },
+          checks: [
+            { name: 'check', passed: true },
+            { name: 'preproduction', passed: true },
+          ],
+          run: { url: 'https://github.com/owner/repo/actions/runs/42', attempt: 1 },
+        };
+      }
+      result = { report: release, stale: false };
     } else throw new Error('Unexpected route ' + p);
     await route.fulfill({ json: result });
   });
@@ -93,6 +119,7 @@ async function fixture(page: any) {
       connection = { state: 'connected', account: 'owner' };
     },
     posts: () => posts,
+    qualifications: () => qualifications,
   };
 }
 test('GitHub browser connection, repository setup and guide work on desktop and mobile', async ({
@@ -139,4 +166,27 @@ test('reviewed patch publication is explicit and the PR link survives reload', a
   expect(f.posts()).toBe(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await change.screenshot({ path: info.outputPath('github-pr.png') });
+});
+
+test('preproduction report requires explicit refresh and persists after reload', async ({
+  page,
+}, info) => {
+  const f = await fixture(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Créer une pull request en brouillon' }).click();
+  const region = page.getByRole('region', { name: 'Préparation de la release' });
+  await expect(region).toBeVisible();
+  expect(f.qualifications()).toBe(0);
+  await region.getByRole('button', { name: 'Vérifier la préproduction' }).click();
+  await expect(region).toContainText('Préproduction validée');
+  await expect(region).toContainText('Risque : faible');
+  await expect(region.getByRole('link', { name: 'Voir les contrôles GitHub' })).toHaveAttribute(
+    'href',
+    'https://github.com/owner/repo/actions/runs/42',
+  );
+  await page.reload();
+  await expect(region).toContainText('Préproduction validée');
+  expect(f.qualifications()).toBe(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await region.screenshot({ path: info.outputPath('preproduction.png') });
 });

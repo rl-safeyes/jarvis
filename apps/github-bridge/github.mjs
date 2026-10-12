@@ -1,3 +1,4 @@
+import { qualify, trustedPolicy } from './qualification.mjs';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -162,6 +163,14 @@ export class GitHubBridge {
                 : 'github_unavailable',
       );
     return response.json();
+  }
+  async qualify(input) {
+    repository(input.repository);
+    branch(input.branch);
+    const policy = await trustedPolicy(
+      process.env.JARVIS_TRUSTED_ROOT ? new URL(process.env.JARVIS_TRUSTED_ROOT) : undefined,
+    );
+    return qualify(this, input, policy);
   }
   async checkRepository(repo, base) {
     repository(repo);

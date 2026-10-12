@@ -1696,3 +1696,14 @@ textarea {
 .github-settings p + p {
   margin-top: 10px;
 }
+
+.release-readiness {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  min-width: 0;
+}
+.release-readiness h4, .release-readiness ul { margin: 0; }
+.release-readiness ul { padding-left: 1.25rem; line-height: 1.5; }

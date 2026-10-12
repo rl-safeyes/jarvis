@@ -18,12 +18,33 @@ test('GitHub configuration and publication require owner approval bound to the t
   });
   await admin.query(`CREATE SCHEMA ${schema}`);
   await migrate(pool);
+  let alterDuringQualification = false;
   const calls: any[] = [];
   const upstream = createServer(async (req, res) => {
     let body = '';
     for await (const b of req) body += b;
     const input = JSON.parse(body);
     calls.push(input);
+    if (input.action === 'github_qualify') {
+      if (alterDuringQualification)
+        await pool.query("UPDATE github_settings SET base_branch='changed'");
+      res.setHeader('content-type', 'application/json');
+      res.end(
+        JSON.stringify({
+          state: 'passed',
+          commit: input.commit,
+          patch_digest: input.digest,
+          policy_version: 'fixture-v1',
+          policy_digest: '1'.repeat(64),
+          checked_at: new Date().toISOString(),
+          blockers: [],
+          risk: { level: 'low' },
+          checks: [],
+          deploy_allowed: false,
+        }),
+      );
+      return;
+    }
     res.setHeader('content-type', 'application/json');
     res.end(
       JSON.stringify(
@@ -153,7 +174,11 @@ test('GitHub configuration and publication require owner approval bound to the t
         if (callsToPublish === 1) throw new Error('Lost response');
         return {
           state: 'succeeded',
-          result: { url: 'https://github.com/owner/repo/pull/12', number: 12 },
+          result: {
+            url: 'https://github.com/owner/repo/pull/12',
+            number: 12,
+            commit: 'b'.repeat(40),
+          },
         };
       },
     };
@@ -172,6 +197,29 @@ test('GitHub configuration and publication require owner approval bound to the t
     await publishGitHubChange(pool, service, retried.operation_id, id, () => {}, 1);
     assert.equal(callsToPublish, 2);
 
+    const releaseUrl = `/api/v1/development/${id}/release`;
+    const qualify = (payload: any = { digest, commit: 'b'.repeat(40) }, h: any = headers) =>
+      app.inject({ method: 'POST', url: releaseUrl, headers: h, payload });
+    assert.equal((await app.inject({ url: releaseUrl })).statusCode, 401);
+    assert.equal((await qualify(undefined, { origin, cookie })).statusCode, 403);
+    assert.equal((await qualify({ digest, commit: 'a'.repeat(40) })).statusCode, 409);
+    assert.equal((await qualify({ digest, commit: 'b'.repeat(40), deploy: true })).statusCode, 400);
+    const qualified = await qualify();
+    assert.equal(qualified.statusCode, 200, qualified.body);
+    assert.equal(qualified.json().report.state, 'passed');
+    assert.equal(qualified.json().report.deploy_allowed, false);
+    const saved = (await app.inject({ url: releaseUrl, headers })).json();
+    assert.deepEqual(saved.report, qualified.json().report);
+    assert.equal(saved.stale, false);
+    alterDuringQualification = true;
+    assert.equal(
+      (await qualify()).statusCode,
+      409,
+      'concurrent settings change invalidates report',
+    );
+    assert.equal((await app.inject({ url: releaseUrl, headers })).json().stale, true);
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM release_checks')).rows[0].n, 1);
+    await pool.query("UPDATE github_settings SET base_branch='main'");
     await pool.query('UPDATE github_settings SET repository=$1', ['owner/other']);
     assert.equal((await post()).statusCode, 409);
   } finally {

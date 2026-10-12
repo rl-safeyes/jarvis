@@ -44,6 +44,9 @@ http
         case 'github_snapshot':
           result = await bridge.snapshot(input);
           break;
+        case 'github_qualify':
+          result = await bridge.qualify(input);
+          break;
         case 'github_publish':
           result = await bridge.publish(input);
           break;

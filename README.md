@@ -163,3 +163,14 @@ la source distante, les dépendances et les tests de référence soient cohéren
 La connexion GitHub reste dans un conteneur dédié ; les agents n’ont pas le jeton.
 Voir [la spécification GitHub](specs/17-github-pull-requests.md) pour la reprise,
 les limites et le déploiement.
+
+## Préproduction et risque
+
+Après création d’une PR par Jarvis, attendre les contrôles GitHub puis cliquer sur
+**Vérifier la préproduction** dans la proposition. Le rapport conserve le commit,
+la classe de risque et les contrôles réussis ou bloquants. La préproduction démarre
+l’image applicative avec une base temporaire et un moteur simulé, sans comptes ni
+données de production. Un rapport doit être actualisé après tout changement.
+
+La fusion, le déploiement et le retour arrière automatiques restent à livrer.
+Voir [le fonctionnement et les limites](specs/18-preproduction-et-risque.md).

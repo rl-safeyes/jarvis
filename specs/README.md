@@ -50,3 +50,5 @@ Valider d’abord un harness fourni par Docker Jarvis et sa connexion depuis la 
 
 - [Dictée vocale STT](16-voice-stt.md)
 - [GitHub et pull requests](17-github-pull-requests.md)
+
+- [Préproduction et risque](18-preproduction-et-risque.md)

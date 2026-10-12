@@ -1,10 +1,11 @@
+import { ReleaseReadiness } from './ReleaseReadiness.tsx';
 import { useEffect, useState } from 'react';
 import { api } from './api.ts';
 import type { DevelopmentChange } from '../../../packages/contracts/src/development.ts';
 type Publication = {
   state: string;
   error?: string;
-  result?: { url: string; number: number; state: string };
+  result?: { url: string; number: number; state: string; commit?: string };
 };
 export function GitHubPublication({ change }: { change: DevelopmentChange }) {
   const [publication, setPublication] = useState<Publication | null>(null);
@@ -83,6 +84,13 @@ export function GitHubPublication({ change }: { change: DevelopmentChange }) {
         <p className="notice error" role="alert">
           {error || publication?.error}
         </p>
+      )}
+      {publication?.state === 'succeeded' && publication.result?.commit && (
+        <ReleaseReadiness
+          id={change.id}
+          digest={change.artifact!.digest}
+          commit={publication.result.commit}
+        />
       )}
       <p className="muted">
         Aucune fusion ni aucun déploiement. Une branche peut subsister si la création de la PR est
