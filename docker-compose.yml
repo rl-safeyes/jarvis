@@ -1,5 +1,12 @@
 version: '3.8'
 services:
+  development-image:
+    profiles: [tools]
+    image: ${JARVIS_RUNTIME_PREFIX:-jarvis}-development:current
+    build:
+      context: .
+      dockerfile: infra/development/Dockerfile
+    entrypoint: [node, --version]
   db:
     image: postgres:16-alpine
     environment:

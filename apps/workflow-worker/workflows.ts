@@ -1,7 +1,7 @@
 import { proxyActivities } from '@temporalio/workflow';
 import type { executeOperation } from './activities.ts';
 const activities = proxyActivities<{ executeOperation: typeof executeOperation }>({
-  startToCloseTimeout: '20 minutes',
+  startToCloseTimeout: '35 minutes',
   heartbeatTimeout: '30 seconds',
   retry: { maximumAttempts: 3, initialInterval: '3 seconds', maximumInterval: '30 seconds' },
 });

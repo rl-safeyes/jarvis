@@ -43,3 +43,20 @@ node tests/fixtures/check-delegation-protocol.mjs
 ```
 
 Ne pas ajouter `compose.yml` de fixture historique à cette commande : son préfixe est différent. La recette agents cible uniquement le port 3303 et le worker `jarvis-delegation-test_worker_1`. Elle valide création, délégation, restitution, arrêt du spécialiste et reprise du worker sans répéter son inférence. Le profil factice reste disponible pour `tests/e2e/agents.spec.ts` avec `E2E_AGENTS=1`, `E2E_BASE_URL=http://localhost:3303` et le mot de passe propriétaire de cette pile. Arrêter ensuite les services et les conteneurs labellisés `jarvis.owner=jarvis-delegation-fixture`, en conservant les volumes.
+
+
+## Recette outils de développement
+
+Dans un checkout dédié : `.env` avec `JARVIS_DB_PORT=55435`, `JARVIS_HTTP_PORT=3304`, `JARVIS_PUBLIC_ORIGIN=http://localhost:3304`, `JARVIS_RUNTIME_PREFIX=jarvis-development-fixture` et ce port PostgreSQL dans `DATABASE_URL`.
+
+```bash
+docker build -f tests/fixtures/Dockerfile -t jarvis-development-fixture-harness-codex:0.161.0-v2 .
+docker compose -p jarvis-development-test --profile tools build development-image
+docker compose -p jarvis-development-test --profile app up --build -d
+node tests/fixtures/check-development-tools.mjs
+node tests/fixtures/check-development-protocol.mjs
+```
+
+La première recette utilise Docker pour vérifier les vrais outils, les montages/permissions, les chemins, la reprise idempotente d’une écriture, le patch figé, les tests de référence et l’annulation durable. La seconde connecte uniquement le pair factice, passe par Temporal et vérifie le développement/review, le téléchargement authentifié et l’arrêt. Le pair ne contacte aucun fournisseur.
+
+Les tests navigateur `tests/e2e/development.spec.ts` utilisent `E2E_DEVELOPMENT=1`, `E2E_BASE_URL=http://localhost:3304` et `E2E_OWNER_PASSWORD` pour cette pile uniquement. Après la recette, arrêter la pile et les conteneurs labellisés `jarvis.owner=jarvis-development-fixture`. Les journaux/volumes restent disponibles pour diagnostic.

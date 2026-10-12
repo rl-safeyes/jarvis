@@ -1498,3 +1498,49 @@ textarea {
   overflow-wrap: anywhere;
   min-width: 0;
 }
+
+.development-toggle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  margin: 8px 0;
+}
+.development-toggle input {
+  width: 16px;
+  height: 16px;
+}
+.development-toggle span {
+  color: var(--muted);
+}
+.development-changes {
+  width: 100%;
+  max-width: 850px;
+  margin: 16px auto;
+  padding: 0 20px;
+}
+.development-change {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 16px;
+  overflow-wrap: anywhere;
+}
+.development-change details {
+  margin: 12px 0;
+}
+.development-change pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 360px;
+  overflow: auto;
+  font-size: 12px;
+}
+.development-change code {
+  font-size: 11px;
+}
+.development-change a {
+  color: var(--accent);
+  text-decoration: underline;
+}

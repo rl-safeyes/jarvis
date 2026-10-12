@@ -2,7 +2,7 @@
 
 Assistant personnel en TypeScript avec PWA, API Fastify, PostgreSQL, Temporal et runtimes de harnesses dans Docker.
 
-Cette version permet d’installer des moteurs du catalogue, connecter des comptes, tester des profils, choisir un défaut et affecter un profil à Jarvis ou aux fiches des spécialistes. Les conversations réelles passent par le harness choisi, avec historique, annulation et suivi durable. Jarvis peut créer des agents par département et leur déléguer des tâches de rédaction ou d’analyse. La voix, les outils de développement et l’auto-amélioration ne sont pas encore activés.
+Cette version permet d’installer des moteurs du catalogue, connecter des comptes, tester des profils, choisir un défaut et affecter un profil à Jarvis ou aux fiches des spécialistes. Les conversations réelles passent par le harness choisi, avec historique, annulation et suivi durable. Jarvis peut créer des agents par département et leur déléguer des tâches de rédaction ou d’analyse. Les missions de développement peuvent produire un patch testé et revu dans une copie isolée. La voix et la publication autonome ne sont pas encore activées.
 
 ## Démarrer avec Docker
 
@@ -58,7 +58,7 @@ Un changement de défaut concerne les prochains runs. Les missions en cours cons
 - Temporal orchestre installations, tests et missions réelles. Une outbox PostgreSQL assure le démarrage durable avec un identifiant stable.
 - Le superviseur est le seul composant qui monte le socket Docker. Il constitue une partie privilégiée du plan de contrôle ; ses recettes et son API interne doivent rester réservées à l’administrateur. Aucun port du superviseur ou des runtimes n’est publié.
 - Un conteneur de compte est non privilégié, limité en ressources et séparé de l’API. Il possède son propre volume persistant et accepte une inférence à la fois. Il ne reçoit aucun montage du dépôt ou du répertoire personnel de l’hôte.
-- Les outils natifs des modèles restent désactivés. Jarvis peut créer et appeler des spécialistes via des actions structurées validées ; les spécialistes ne peuvent ni déléguer à leur tour ni exécuter du code.
+- Les outils natifs des modèles restent désactivés. Jarvis peut créer et appeler des spécialistes via des actions structurées validées ; les spécialistes ordinaires ne peuvent pas déléguer à leur tour. Les missions de développement explicitement activées utilisent un service d’outils isolé, séparé des comptes.
 - Les workflows sont compilés dans l’image. Le worker n’a pas besoin d’écrire dans le code au démarrage.
 - Le registre d’exécution du runtime rend le lancement idempotent. Un crash du worker peut se rattacher au résultat existant. Un crash du runtime pendant un appel produit un échec explicite avec résultat inconnu, sans deuxième inférence aveugle.
 - Les conversations transfèrent les 20 derniers messages, bornés à 64 000 caractères, dans une nouvelle session native par mission. La reprise native longue et le streaming token par token restent à ajouter.
@@ -85,7 +85,7 @@ Les tests Playwright de conversation utilisent le mode `mock`, `E2E_BASE_URL` et
 
 ## État et suite
 
-L’installation des trois images, le parcours navigateur et les contrats de protocole sont vérifiés. La qualification d’une inférence avec les comptes réels du propriétaire reste à effectuer depuis l’interface. Les autres fonctions prévues sont détaillées dans [specs](specs/README.md), avec [l’état exact de l’implémentation](specs/10-etat-implementation.md).
+L’installation des trois images, le parcours navigateur et les contrats de protocole sont vérifiés. La conversation, la création et la délégation ont été validées avec le compte Codex réel du propriétaire. Les autres fonctions prévues sont détaillées dans [specs](specs/README.md), avec [l’état exact de l’implémentation](specs/10-etat-implementation.md).
 
 ## Créer un spécialiste et lui confier une tâche
 
@@ -98,3 +98,25 @@ Jarvis crée la fiche, appelle le spécialiste et restitue son résultat. L’é
 Le suivi de mission expose les agents appelés et leurs résultats, y compris après rechargement. Sur mobile, ouvrir **Voir les étapes**. Le bouton d’arrêt concerne également le spécialiste en cours. Les créations déjà terminées sont conservées après annulation.
 
 Limites initiales par mission : 8 appels au modèle, 6 tours de décision, 3 créations, 3 délégations et 15 minutes. Chaque appel est limité à 5 minutes, attente du compte comprise. Ces bornes limitent le travail ; elles ne mesurent pas la facture ou les tokens. Les appels partageant un compte sont exécutés successivement.
+
+
+## Préparer une modification de Jarvis
+
+Construire l’environnement depuis le code de la version que l’on souhaite modifier :
+
+```bash
+docker compose --profile tools build development-image
+docker compose --profile app up --build -d
+```
+
+Dans le chat, cocher **Développer Jarvis pour ce message**, puis demander par exemple :
+
+> Ajoute dans README.md une explication concise du fonctionnement des départements. Prépare la modification et fais-la relire.
+
+Jarvis choisit un développeur et un reviewer distincts dans le registre. Leurs profils configurés sont utilisés ; sans choix explicite ils héritent du défaut global. L’agent développeur dispose de lecture, liste, écriture et suppression de fichiers ainsi que d’un terminal avec Git, GitHub CLI, Node et npm. Le harness reste connecté uniquement dans son conteneur de compte : les outils sont appelés par décisions structurées validées par Jarvis, pas par un shell dans le conteneur qui contient les identifiants.
+
+Le code de référence est inclus dans l’image de développement ; ce lot cible **Jarvis**, sans importer d’autre dépôt. Chaque mission travaille sur un volume séparé et une branche locale. Aucun montage du dépôt hôte, aucun secret, aucun réseau ni socket Docker n’est donné aux outils. Les dépendances existantes sont disponibles depuis l’image. GitHub CLI est installé, **sans connexion à GitHub** : push, pull requests, nouvelles dépendances et navigateur automatisé dans la sandbox restent à intégrer.
+
+Le résultat comprend le diff téléchargeable, son SHA-256, les vérifications TypeScript/tests unitaires de référence et une revue indépendante. Le validateur travaille sur une copie figée et restaure les tests unitaires et la configuration TypeScript de référence ; il n’utilise pas une commande de test inventée par le développeur. Il ne remplace pas les tests d’intégration, E2E et de sécurité nécessaires avant publication. Aucun patch n’est appliqué au serveur, poussé ou déployé dans ce lot.
+
+Bornes : une modification par mission, 20 tours du développeur, 32 appels au modèle au total, 30 minutes ; 5 minutes par appel, 90 secondes par commande. Le patch est limité à 20 fichiers et 100 000 caractères ; au-delà de 42 000 caractères, il reste téléchargeable mais la revue automatique est refusée. Les opérations et annulations sont idempotentes ; un résultat d’outil inconnu n’est pas rejoué aveuglément. Les journaux et volumes de travail sont conservés pour diagnostic. Voir [les détails et limites](specs/11-outils-developpement.md).

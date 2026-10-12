@@ -4,7 +4,7 @@ Jarvis est un assistant personnel accessible par texte et par voix depuis une PW
 
 La proposition repose sur un **noyau de contrôle déterministe**, des **agents configurables et versionnés**, et des **environnements d’exécution isolés** utilisant Codex, Claude Code ou OpenCode. Les changements à faible risque peuvent être déployés automatiquement ; les autres demandent une validation humaine sur une version précise et testée.
 
-Statut : spécifications cibles, complétées avec la gestion des harnesses et leur distribution Docker. Le code comprend le socle, un gestionnaire de harnesses Docker et le chemin de conversation réelle à qualifier avec les comptes du propriétaire ; voir [l’état d’implémentation](10-etat-implementation.md) pour distinguer la cible du code livré.
+Statut : spécifications cibles, complétées avec la gestion des harnesses et leur distribution Docker. Le code comprend le socle, un gestionnaire de harnesses Docker la création/délégation d’agents et la préparation de patches dans une copie isolée ; voir [l’état d’implémentation](10-etat-implementation.md) pour distinguer la cible du code livré.
 
 ## Décisions de départ
 
@@ -36,6 +36,8 @@ Le choix d’un harness ne fixe ni le rôle de l’agent ni son modèle. Un dév
 | [Déploiement et exploitation](07-exploitation.md) | Isolation, secrets, supervision, sauvegardes et dimensionnement |
 | [Plan de réalisation](08-implementation.md) | Structure du projet, lots, critères de recette et estimations |
 | [Décisions et sources](09-decisions-sources.md) | Arbitrages, questions restantes et documentation officielle |
+| [État livré](10-etat-implementation.md) | Fonctions vérifiées et limites présentes |
+| [Outils de développement](11-outils-developpement.md) | Copie isolée, terminal/Git, patch, tests et revue |
 | [Exemples](examples/) | Schéma de manifeste, agent développeur et interface TypeScript des adaptateurs |
 
 ## Premier scénario de démonstration

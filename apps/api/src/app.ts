@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import { registerDevelopmentRoutes } from './development-routes.ts';
 import { registerHarnessRoutes } from './harness-routes.ts';
 import { HarnessRepository } from '../../../packages/storage/src/harnesses.ts';
 import { SupervisorClient } from './supervisor-client.ts';
@@ -169,6 +170,7 @@ export async function createApp({
     new SupervisorClient(supervisorUrl, supervisorToken),
   );
   registerAgentRoutes(app, new AgentRepository(repo.pool), mode);
+  registerDevelopmentRoutes(app, repo.pool, new SupervisorClient(supervisorUrl, supervisorToken));
   app.get('/api/v1/conversations', async () => ({ conversations: await repo.listConversations() }));
   app.post('/api/v1/conversations', async (request, reply) => {
     const input = createConversationSchema.parse(request.body);

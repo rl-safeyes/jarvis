@@ -15,7 +15,13 @@ export function AgentTasks({ tasks }: { tasks: AgentTask[] }) {
         <details key={task.id} className="agent-task">
           <summary>
             <strong>
-              {task.kind === 'create_agent' ? `Création de ${task.agent_name}` : task.agent_name}
+              {task.kind === 'create_agent'
+                ? `Création de ${task.agent_name}`
+                : task.kind === 'developer'
+                  ? `${task.agent_name} · Développement`
+                  : task.kind === 'reviewer'
+                    ? `${task.agent_name} · Revue`
+                    : task.agent_name}
             </strong>{' '}
             · {labels[task.status]}
           </summary>
@@ -24,7 +30,7 @@ export function AgentTasks({ tasks }: { tasks: AgentTask[] }) {
               {task.harness} · {task.model} · Version {(task.agent_revision ?? 0) + 1}
             </p>
           )}
-          {task.kind === 'delegate' && task.result && (
+          {['delegate', 'reviewer'].includes(task.kind) && task.result && (
             <p className="preserved-text">{task.result}</p>
           )}
           {task.error && <p className="notice error">{task.error}</p>}

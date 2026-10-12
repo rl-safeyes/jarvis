@@ -39,6 +39,7 @@ function mission(row: Row): Mission {
     attempt: row.attempt,
     result: row.result,
     runtime: row.runtime ?? null,
+    development_enabled: row.development_enabled ?? false,
     created_at: date(row.created_at),
     updated_at: date(row.updated_at),
   };
@@ -78,7 +79,7 @@ export async function migrate(pool: Pool): Promise<void> {
     await client.query(
       'CREATE TABLE IF NOT EXISTS schema_migrations (version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())',
     );
-    for (const version of ['001-foundation', '002-harnesses', '003-agents']) {
+    for (const version of ['001-foundation', '002-harnesses', '003-agents', '004-development']) {
       if (
         (await client.query('SELECT version FROM schema_migrations WHERE version=$1', [version]))
           .rowCount
@@ -163,7 +164,13 @@ export class Repository {
           [id],
         )
       ).rows;
-      return { conversation: conversation(row), messages, missions, tasks };
+      const changes = (
+        await client.query(
+          'SELECT d.* FROM development_changes d JOIN missions m ON m.id=d.mission_id WHERE m.conversation_id=$1 ORDER BY d.created_at',
+          [id],
+        )
+      ).rows;
+      return { conversation: conversation(row), messages, missions, tasks, changes };
     });
   }
   async submit(id: string, input: SubmitMessage): Promise<Mission> {
@@ -171,7 +178,8 @@ export class Repository {
       const row = (await client.query('SELECT * FROM conversations WHERE id=$1 FOR UPDATE', [id]))
         .rows[0];
       if (!row) throw new DomainError(404, 'not_found', 'Conversation introuvable.');
-      const inputHash = hash(input);
+      const { development, ...ordinaryInput } = input;
+      const inputHash = hash(development ? input : ordinaryInput);
       const existing = (
         await client.query(
           'SELECT * FROM messages WHERE conversation_id=$1 AND client_message_id=$2',
@@ -217,7 +225,7 @@ export class Repository {
       const missionId = randomUUID();
       const created = (
         await client.query(
-          "INSERT INTO missions(id,conversation_id,input,status,harness,runtime,orchestration_version) VALUES ($1,$2,$3,'queued',$4,$5,$6) RETURNING *",
+          "INSERT INTO missions(id,conversation_id,input,status,harness,runtime,orchestration_version,development_enabled) VALUES ($1,$2,$3,'queued',$4,$5,$6,$7) RETURNING *",
           [
             missionId,
             id,
@@ -225,6 +233,7 @@ export class Repository {
             intent ? 'control' : (runtime?.harness ?? 'mock'),
             runtime,
             runtime ? 1 : 0,
+            Boolean(runtime && input.development),
           ],
         )
       ).rows[0]!;

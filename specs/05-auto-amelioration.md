@@ -78,3 +78,7 @@ Les migrations suivent une stratégie d’extension puis contraction, avec sauve
 Une amélioration peut venir d’une demande explicite, d’un échec récurrent ou d’un indicateur de qualité. Jarvis crée alors une proposition avec bénéfice attendu, coût maximal et mesure de réussite. Les travaux proactifs consomment un budget distinct configuré par le propriétaire ; par défaut, la détection peut proposer sans démarrer un développement non sollicité.
 
 Les performances d’un agent sont comparées avant et après sur des cas conservés : réussite, erreurs, durée et consommation. Une modification de prompt qui dégrade les cas existants ne devient pas automatiquement la nouvelle version. L’auto amélioration n’est donc pas supposée monotone ; elle est mesurée et réversible.
+
+## Première tranche livrée
+
+Le [lot outils de développement](11-outils-developpement.md) livre la copie isolée, le patch, les tests unitaires de référence et la revue indépendante. La publication, le classement automatique du risque, la préproduction et le retour arrière de la présente spécification restent à implémenter. Une revue favorable produit une proposition, jamais une release.

@@ -1,3 +1,4 @@
+import { developmentRunner } from './development.mjs';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { timingSafeEqual, createHash, createHmac } from 'node:crypto';
@@ -147,7 +148,10 @@ async function ensureAccount(h, id) {
     creating.delete(name);
   }
 }
+const development = developmentRunner(docker, prefix);
 async function dispatch(input) {
+  if (['development_status', 'development_operation', 'development_cancel'].includes(input.action))
+    return development(input);
   const h = input.harness;
   if (!Object.hasOwn(recipes, h)) throw new Error('unknown_harness');
   if (input.action === 'install') return install(h);

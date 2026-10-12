@@ -89,4 +89,6 @@ Une recherche textuelle avec filtres d’accès suffit au premier lot. La recher
 
 ## Périmètre livré du premier lot
 
-La création de fiches et de départements, l’historique des instructions/profils et la délégation directe Jarvis → spécialiste sont implémentés. Les outils sont vides, le résultat du spécialiste est textuel, la profondeur est limitée à un et les missions sont bornées à 3 délégations. Les manifestes complets, évaluations qualitatives, mémoires et dépendances entre sous-tâches décrits plus haut constituent les lots suivants. Voir [l’état de l’implémentation](10-etat-implementation.md) pour les limites opérationnelles.
+La création de fiches et de départements, l’historique des instructions/profils et la délégation directe Jarvis → spécialiste sont implémentés. Pour les délégations ordinaires, les outils sont vides et le résultat du spécialiste est textuel, la profondeur est limitée à un et les missions sont bornées à 3 délégations. Les manifestes complets, évaluations qualitatives, mémoires et dépendances entre sous-tâches décrits plus haut constituent les lots suivants. Voir [l’état de l’implémentation](10-etat-implementation.md) pour les limites opérationnelles.
+
+Les missions avec autorisation de développement utilisent désormais le [service d’outils isolé](11-outils-developpement.md). Le développeur et le reviewer sont deux fiches distinctes du registre ; le reviewer ne reçoit aucun droit d’écriture.

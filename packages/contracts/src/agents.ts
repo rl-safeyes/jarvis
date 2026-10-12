@@ -12,6 +12,14 @@ export const createAgentSchema = z
 export const createAgentRequestSchema = createAgentSchema.extend({ request_id: z.uuid() });
 export type CreateAgent = z.infer<typeof createAgentSchema>;
 export const decisionSchema = z.discriminatedUnion('type', [
+  z
+    .object({
+      type: z.literal('develop'),
+      agent_id: z.string().min(1).max(100),
+      reviewer_id: z.string().min(1).max(100),
+      task: z.string().min(1).max(12000),
+    })
+    .strict(),
   z.object({ type: z.literal('reply'), text: z.string().trim().min(1).max(32000) }).strict(),
   z.object({ type: z.literal('create_agent'), agent: createAgentSchema }).strict(),
   z
@@ -46,7 +54,7 @@ export interface AgentTask {
   id: string;
   mission_id: string;
   sequence: number;
-  kind: 'orchestrator' | 'delegate' | 'create_agent';
+  kind: 'orchestrator' | 'delegate' | 'create_agent' | 'developer' | 'reviewer';
   agent_id: string;
   agent_name: string;
   agent_revision: number | null;

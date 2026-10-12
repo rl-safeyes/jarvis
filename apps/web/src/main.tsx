@@ -1,3 +1,4 @@
+import { DevelopmentChanges } from './DevelopmentChanges.tsx';
 import { AgentDirectory } from './AgentDirectory.tsx';
 import { AgentTasks } from './AgentTasks.tsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -42,6 +43,7 @@ import type { HarnessDashboard } from '../../../packages/contracts/src/harnesses
 
 const pendingSchema = z.object({
   text: z.string(),
+  development: z.boolean().default(false),
   createId: z.uuid(),
   messageId: z.uuid(),
   conversationId: z.uuid().nullable(),
@@ -112,6 +114,7 @@ function App() {
   const [draft, setDraft] = useState(
     () => pendingRef.current?.text ?? stored('jarvis.draft') ?? '',
   );
+  const [development, setDevelopment] = useState(() => pendingRef.current?.development ?? false);
   const [sending, setSending] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [view, setView] = useState<'chat' | 'organization' | 'settings'>('chat');
@@ -245,6 +248,7 @@ function App() {
           'task.failed',
           'task.cancelled',
           'agent.created',
+          'development.updated',
         ].includes(value.type)
       ) {
         if (value.type === 'agent.created') registryDirty = true;
@@ -288,6 +292,7 @@ function App() {
     setSelected(null);
     setView('chat');
     setDraft('');
+    setDevelopment(false);
     setError('');
     setMenuOpen(false);
     pendingRef.current = null;
@@ -300,9 +305,15 @@ function App() {
     setSending(true);
     setError('');
     let pending = pendingRef.current;
-    if (!pending || pending.text !== text || pending.conversationId !== selected)
+    if (
+      !pending ||
+      pending.text !== text ||
+      pending.conversationId !== selected ||
+      pending.development !== development
+    )
       pending = {
         text,
+        development,
         createId: crypto.randomUUID(),
         messageId: crypto.randomUUID(),
         conversationId: selected,
@@ -327,8 +338,10 @@ function App() {
         client_message_id: pending.messageId,
         text,
         expected_conversation_version: pending.version,
+        ...(pending.development ? { development: true } : {}),
       });
       setDraft('');
+      setDevelopment(false);
       pendingRef.current = null;
       store('jarvis.pending', null);
       await Promise.all([
@@ -364,6 +377,7 @@ function App() {
       setConversations([]);
       setDetail(null);
       setDraft('');
+      setDevelopment(false);
       pendingRef.current = null;
       for (const key of ['jarvis.draft', 'jarvis.pending', 'jarvis.conversation']) store(key, null);
       setSelected(null);
@@ -699,9 +713,21 @@ function App() {
                     )}
                   </div>
                 )}
+                <DevelopmentChanges changes={detail?.changes ?? []} />
                 <div ref={bottomRef} />
               </div>
               <div className="composer-area">
+                {session.mode === 'live' && (
+                  <label className="development-toggle">
+                    <input
+                      type="checkbox"
+                      checked={development}
+                      disabled={sending || Boolean(active)}
+                      onChange={(e) => setDevelopment(e.target.checked)}
+                    />
+                    Développer Jarvis pour ce message <span>Copie isolée, patch et revue</span>
+                  </label>
+                )}
                 <form className="composer" onSubmit={send}>
                   <textarea
                     ref={textareaRef}

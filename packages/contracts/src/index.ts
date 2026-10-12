@@ -12,6 +12,7 @@ export const submitMessageSchema = z
     client_message_id: idSchema,
     text: z.string().trim().min(1).max(8000),
     expected_conversation_version: z.number().int().nonnegative(),
+    development: z.boolean().optional(),
   })
   .strict();
 export const loginSchema = z.object({ password: z.string().min(1).max(256) }).strict();
@@ -42,6 +43,7 @@ export interface Mission {
   runtime?: import('./harnesses.ts').RuntimeSnapshot | null;
   agent_id: string;
   attempt: number;
+  development_enabled?: boolean;
   result: string | null;
   created_at: string;
   updated_at: string;
@@ -59,6 +61,7 @@ export interface ConversationDetail {
   messages: Message[];
   missions: Mission[];
   tasks?: import('./agents.ts').AgentTask[];
+  changes?: import('./development.ts').DevelopmentChange[];
 }
 export interface SessionInfo {
   authenticated: true;

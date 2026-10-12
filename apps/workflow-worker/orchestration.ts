@@ -1,3 +1,4 @@
+import { DevelopmentWorkflow } from './development.ts';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { Pool, transaction, DomainError } from '@jarvis/storage';
@@ -44,7 +45,10 @@ export class Orchestrator {
     agentId: string,
     prompt: string,
     ownRuntime?: RuntimeSnapshot,
+    extraInstructions?: string,
   ) {
+    if (prompt.length > 64000)
+      throw new DomainError(422, 'context_limit', 'Contexte de la tâche trop volumineux.');
     return transaction(this.pool, async (c) => {
       const m = (await c.query('SELECT * FROM missions WHERE id=$1 FOR UPDATE', [missionId]))
         .rows[0];
@@ -64,7 +68,8 @@ export class Orchestrator {
       ).rows;
       const count = (k: string) => counts.find((x) => x.kind === k)?.count ?? 0;
       if (
-        count('orchestrator') + count('delegate') >= missionLimits.modelCalls ||
+        count('orchestrator') + count('delegate') + count('developer') + count('reviewer') >=
+          (m.development_enabled ? 32 : missionLimits.modelCalls) ||
         (kind === 'delegate' && count(kind) >= missionLimits.delegations)
       )
         throw new Stop('budget');
@@ -74,15 +79,27 @@ export class Orchestrator {
           'recursive_delegation',
           'Jarvis ne peut pas se déléguer une tâche.',
         );
-      const resolved = ownRuntime ?? (await new HarnessRepository(this.pool).resolve(c, agentId));
-      const runtime = {
+      const previousRuntime = ['developer', 'reviewer'].includes(kind)
+        ? (
+            await c.query(
+              'SELECT runtime FROM mission_steps WHERE mission_id=$1 AND kind=$2 AND agent_id=$3 ORDER BY sequence LIMIT 1',
+              [missionId, kind, agentId],
+            )
+          ).rows[0]?.runtime
+        : null;
+      const resolved =
+        ownRuntime ??
+        previousRuntime ??
+        (await new HarnessRepository(this.pool).resolve(c, agentId));
+      const runtime = previousRuntime ?? {
         ...resolved,
         instructions:
           resolved.instructions +
           '\n\n' +
-          (kind === 'orchestrator'
-            ? instructions
-            : 'Tu es un spécialiste appelé par Jarvis. Accomplis uniquement la tâche reçue et rends ton résultat en français. Aucun outil ni délégation ne t’est disponible. Ne prétends pas avoir créé un agent ou accédé à des fichiers.'),
+          (extraInstructions ??
+            (kind === 'orchestrator'
+              ? instructions
+              : 'Tu es un spécialiste appelé par Jarvis. Accomplis uniquement la tâche reçue et rends ton résultat en français. Aucun outil ni délégation ne t’est disponible. Ne prétends pas avoir créé un agent ou accédé à des fichiers.')),
       };
       const a = (await c.query('SELECT name FROM agent_registry WHERE id=$1', [agentId])).rows[0];
       if (!a)
@@ -231,6 +248,28 @@ export class Orchestrator {
     });
   }
   async stopChildren(id: string) {
+    const ops = (
+      await this.pool.query(
+        `SELECT o.*,d.id AS workspace_id FROM development_operations o JOIN development_changes d ON d.id=o.change_id WHERE d.mission_id=$1 AND o.status IN ('queued','running')`,
+        [id],
+      )
+    ).rows;
+    for (const op of ops) {
+      const cancelled = await this.supervisor.call({
+        action: 'development_cancel',
+        id: op.id,
+        workspace_id: op.workspace_id,
+      });
+      if (cancelled.state !== 'cancelled') throw new Error('Tool cancellation not confirmed');
+      await this.pool.query(
+        "UPDATE development_operations SET status='cancelled',result=$2 WHERE id=$1",
+        [op.id, cancelled],
+      );
+    }
+    await this.pool.query(
+      "UPDATE development_changes SET status=CASE WHEN (SELECT status FROM missions WHERE id=$1) IN ('cancel_requested','cancelled') THEN 'cancelled' ELSE 'failed' END,error=COALESCE(error,'Mission interrompue.'),updated_at=now() WHERE mission_id=$1 AND status IN ('working','validating','reviewing')",
+      [id],
+    );
     const steps = (
       await this.pool.query(
         "SELECT * FROM mission_steps WHERE mission_id=$1 AND status IN ('queued','running') ORDER BY sequence",
@@ -263,14 +302,16 @@ export class Orchestrator {
       if (terminal(m.status)) return m;
       if (m.status === 'queued') {
         await c.query(
-          "UPDATE missions SET status='running',attempt=attempt+1,deadline_at=now()+interval '15 minutes' WHERE id=$1",
+          "UPDATE missions SET status='running',attempt=attempt+1,deadline_at=now()+CASE WHEN development_enabled THEN interval '30 minutes' ELSE interval '15 minutes' END WHERE id=$1",
           [id],
         );
         await missionEvent(
           c,
           id,
           'mission.started',
-          'Jarvis organise la mission. Maximum : 8 appels au modèle et 3 délégations.',
+          m.development_enabled
+            ? 'Développement isolé autorisé : 32 appels au maximum, dont 20 tours du développeur ; 30 minutes.'
+            : 'Jarvis organise la mission. Maximum : 8 appels au modèle et 3 délégations.',
         );
       }
       return (await c.query('SELECT * FROM missions WHERE id=$1', [id])).rows[0];
@@ -303,6 +344,7 @@ export class Orchestrator {
           completed_steps: history,
           limits: missionLimits,
           round: round + 1,
+          development_enabled: m.development_enabled,
         });
         if (prompt.length > 64000)
           throw new DomainError(
@@ -311,7 +353,19 @@ export class Orchestrator {
             'Le contexte dépasse la limite de la mission. Utilisez une nouvelle conversation.',
           );
         const planner = await this.run(
-          await this.step(id, round * 2 + 1, 'orchestrator', 'direction.jarvis', prompt, m.runtime),
+          await this.step(
+            id,
+            round * 2 + 1,
+            'orchestrator',
+            'direction.jarvis',
+            prompt,
+            m.runtime,
+            m.development_enabled
+              ? instructions +
+                  '\nException autorisée pour cette mission : tu peux préparer UNE modification du code de Jarvis dans une copie isolée via {"type":"develop","agent_id":"engineering.developer","reviewer_id":"quality.reviewer","task":"demande et critères précis"}. Les spécialistes doivent être distincts et déjà présents au registre. Cette action fournit fichiers, terminal, Git, tests et revue, sans réseau ni déploiement. Pour une demande de code, utilise develop, pas delegate. Le résultat contient un patch consultable. Ne lance pas une deuxième action develop dans cette mission.'
+              : instructions +
+                  '\nLe développement est désactivé pour ce message. Si une modification de code est demandée, explique d’activer Développer Jarvis dans le compositeur puis de renvoyer la demande.',
+          ),
         );
         if (planner.status !== 'succeeded')
           return {
@@ -330,6 +384,50 @@ export class Orchestrator {
           );
         }
         if (decision.type === 'reply') return { state: 'succeeded', text: decision.text };
+        if (decision.type === 'develop') {
+          if (!m.development_enabled)
+            throw new DomainError(
+              403,
+              'development_denied',
+              'Activez Développer Jarvis pour autoriser les outils de cette mission.',
+            );
+          const development = new DevelopmentWorkflow(
+            this.pool,
+            this.supervisor,
+            async () => {
+              const current = (await this.pool.query('SELECT * FROM missions WHERE id=$1', [id]))
+                .rows[0];
+              this.check(current);
+              const revoked = await this.pool.query(
+                `SELECT s.id FROM mission_steps s LEFT JOIN harness_accounts a ON a.id=(s.runtime->>'account_id')::uuid WHERE s.mission_id=$1 AND s.kind IN ('developer','reviewer') AND (a.id IS NULL OR a.state!='ready' OR a.revision!=(s.runtime->>'account_revision')::int) LIMIT 1`,
+                [id],
+              );
+              if (revoked.rowCount) throw new Stop('account');
+            },
+            async (sequence, kind, agent, prompt, rules) =>
+              this.run(await this.step(id, sequence, kind, agent, prompt, undefined, rules)),
+            this.pulse,
+            this.pollMs,
+          );
+          const change = await development.execute(id, decision);
+          history.push({
+            action: 'develop',
+            agent_id: change.developer_id,
+            result: {
+              status: change.status,
+              text: JSON.stringify({
+                change_id: change.id,
+                files: change.artifact?.files,
+                patch_digest: change.artifact?.digest,
+                tests_passed: change.validation?.passed,
+                review: change.review,
+                download: `/api/v1/development/${change.id}/patch`,
+                deployed: false,
+              }),
+            },
+          });
+          continue;
+        }
         const result =
           decision.type === 'create_agent'
             ? await this.create(id, round * 2 + 2, decision.agent)

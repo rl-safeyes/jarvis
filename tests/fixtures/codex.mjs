@@ -47,9 +47,52 @@ createInterface({ input: process.stdin }).on('line', (line) => {
       try {
         prompt = JSON.parse(p.input[0].text);
       } catch {}
-      if (prompt?.completed_steps) {
+      if (prompt?.role === 'development') {
+        const tools = prompt.history.map((h) => h.operation.tool);
+        answer = JSON.stringify(
+          tools.length === 0
+            ? {
+                type: 'tool',
+                operation: {
+                  tool: 'exec',
+                  command: prompt.task.includes('attends')
+                    ? 'sleep 120'
+                    : 'git status --short; gh --version; node --version',
+                },
+              }
+            : tools.length === 1
+              ? {
+                  type: 'tool',
+                  operation: {
+                    tool: 'write',
+                    path: 'docs-development-fixture.txt',
+                    content: 'Development fixture: isolated workspace.\n',
+                  },
+                }
+              : { type: 'done', summary: 'Note de recette ajoutée.' },
+        );
+      } else if (prompt?.role === 'review')
+        answer = JSON.stringify({
+          verdict: 'approve',
+          summary: 'Patch de documentation cohérent avec la demande ; contrôles consultés.',
+        });
+      else if (prompt?.completed_steps) {
         const request = prompt.conversation.at(-1).content;
-        if (request.includes('mission-delegation')) {
+        if (request.includes('mission-development')) {
+          answer = JSON.stringify(
+            prompt.completed_steps.length
+              ? {
+                  type: 'reply',
+                  text: 'Proposition de code préparée, vérifiée et revue. Aucun déploiement.',
+                }
+              : {
+                  type: 'develop',
+                  agent_id: 'engineering.developer',
+                  reviewer_id: 'quality.reviewer',
+                  task: request,
+                },
+          );
+        } else if (request.includes('mission-delegation')) {
           slow = false;
           const agent = prompt.agents.find((a) => a.id === 'produit-recette.analyste-recette');
           const last = prompt.completed_steps.at(-1);
