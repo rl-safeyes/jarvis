@@ -151,6 +151,26 @@ async function ensureAccount(h, id) {
 }
 const development = developmentRunner(docker, prefix);
 async function dispatch(input) {
+  if (
+    [
+      'github_status',
+      'github_connect',
+      'github_disconnect',
+      'github_repository',
+      'github_snapshot',
+      'github_publish',
+    ].includes(input.action)
+  ) {
+    const result = await fetch(`${process.env.JARVIS_GITHUB_URL ?? 'http://github:7081'}/request`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+      signal: AbortSignal.timeout(45000),
+    });
+    const data = await result.json();
+    if (!result.ok) throw new Error(data.error_code ?? 'github_unavailable');
+    return data;
+  }
   if (['development_status', 'development_operation', 'development_cancel'].includes(input.action))
     return development(input);
   const h = input.harness;
@@ -204,7 +224,7 @@ http
       let body = '';
       for await (const chunk of req) {
         body += chunk;
-        if (body.length > 150000) throw new Error('body_limit');
+        if (body.length > 1000000) throw new Error('body_limit');
       }
       res.end(JSON.stringify(await dispatch(JSON.parse(body))));
     } catch (error) {
@@ -221,7 +241,10 @@ http
       ];
       res.end(
         JSON.stringify({
-          error_code: allowed.includes(error?.message) ? error.message : 'runtime_unavailable',
+          error_code:
+            allowed.includes(error?.message) || /^github_[a-z_]+$/.test(error?.message ?? '')
+              ? error.message
+              : 'runtime_unavailable',
         }),
       );
     }

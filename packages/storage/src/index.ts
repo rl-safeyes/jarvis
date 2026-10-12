@@ -79,7 +79,13 @@ export async function migrate(pool: Pool): Promise<void> {
     await client.query(
       'CREATE TABLE IF NOT EXISTS schema_migrations (version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())',
     );
-    for (const version of ['001-foundation', '002-harnesses', '003-agents', '004-development']) {
+    for (const version of [
+      '001-foundation',
+      '002-harnesses',
+      '003-agents',
+      '004-development',
+      '005-github',
+    ]) {
       if (
         (await client.query('SELECT version FROM schema_migrations WHERE version=$1', [version]))
           .rowCount

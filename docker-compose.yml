@@ -47,6 +47,32 @@ services:
     depends_on:
       temporal-db: { condition: service_healthy }
     restart: unless-stopped
+  github:
+    profiles: [app]
+    build:
+      context: .
+      dockerfile: infra/GitHub.Dockerfile
+    environment:
+      JARVIS_SUPERVISOR_TOKEN: ${JARVIS_SUPERVISOR_TOKEN}
+    volumes: [github-state:/state, github-sources:/sources]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    pids_limit: 64
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:7081/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
   supervisor:
     profiles: [app]
     build:
@@ -139,6 +165,9 @@ services:
       retries: 3
     restart: unless-stopped
 volumes:
+  github-state:
+  github-sources:
+    name: ${JARVIS_RUNTIME_PREFIX:-jarvis}-github-sources
   whisper-models:
   postgres-data:
   temporal-data:

@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import { registerGitHubRoutes } from './github-routes.ts';
 import { registerVoiceRoutes, type VoiceOptions } from './voice.ts';
 import { registerDevelopmentRoutes } from './development-routes.ts';
 import { registerHarnessRoutes } from './harness-routes.ts';
@@ -175,6 +176,7 @@ export async function createApp({
   );
   registerAgentRoutes(app, new AgentRepository(repo.pool), mode);
   registerDevelopmentRoutes(app, repo.pool, new SupervisorClient(supervisorUrl, supervisorToken));
+  registerGitHubRoutes(app, repo.pool, new SupervisorClient(supervisorUrl, supervisorToken));
   app.get('/api/v1/conversations', async () => ({ conversations: await repo.listConversations() }));
   app.post('/api/v1/conversations', async (request, reply) => {
     const input = createConversationSchema.parse(request.body);

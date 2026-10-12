@@ -482,6 +482,7 @@ export function HarnessSettings({ onChange }: { onChange: () => void }) {
                       install: 'Installation',
                       test: 'Test de connexion',
                       mission: 'Mission',
+                      github_publish: 'Pull request GitHub',
                     } as Record<string, string>
                   )[o.kind]
                 }{' '}

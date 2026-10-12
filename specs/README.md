@@ -47,3 +47,6 @@ Depuis l’iPhone : « Jarvis, ajoute une fonction de suivi de mes dépenses à 
 ## Priorité de construction
 
 Valider d’abord un harness fourni par Docker Jarvis et sa connexion depuis la PWA sans IA préexistante, puis livrer une chaîne verticale : choix du défaut → message PWA → Jarvis → agent développeur → résultat persistant. Les harnesses supplémentaires se qualifient au fur et à mesure de leur intégration. Ajouter ensuite la reprise après panne, la création d’agents, la voix et le cycle d’évolution. Les agents n’obtiennent les droits de déploiement qu’après validation du pipeline et du retour arrière.
+
+- [Dictée vocale STT](16-voice-stt.md)
+- [GitHub et pull requests](17-github-pull-requests.md)

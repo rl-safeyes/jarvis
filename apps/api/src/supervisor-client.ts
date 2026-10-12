@@ -1,3 +1,4 @@
+import { githubErrors } from './github-errors.ts';
 import { DomainError } from '@jarvis/storage';
 export class SupervisorClient {
   constructor(
@@ -15,6 +16,7 @@ export class SupervisorClient {
       if (!r.ok) {
         const data = await r.json();
         const messages: Record<string, string> = {
+          ...githubErrors,
           auth_failed:
             'La connexion Claude a échoué. Relancez-la et utilisez le code du nouveau lien.',
           auth_session_expired:

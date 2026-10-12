@@ -39,6 +39,7 @@ import {
 } from '@jarvis/contracts';
 import { api, ApiError, setCsrfToken } from './api.ts';
 import './styles.css';
+import { GitHubSettings } from './GitHubSettings.tsx';
 import { HarnessSettings } from './HarnessSettings.tsx';
 import type { HarnessDashboard } from '../../../packages/contracts/src/harnesses.ts';
 
@@ -920,6 +921,7 @@ function App() {
         ) : (
           <main className="page-content settings">
             <HarnessSettings onChange={() => void refreshRuntime()} />
+            <GitHubSettings />
             <section className="settings-card">
               <h2>
                 <ShieldCheck size={20} />

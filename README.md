@@ -123,9 +123,9 @@ Dans le chat, cocher **Développer Jarvis pour ce message**, puis demander par e
 
 Jarvis choisit un développeur et un reviewer distincts dans le registre. Leurs profils configurés sont utilisés ; sans choix explicite ils héritent du défaut global. L’agent développeur dispose de lecture, liste, écriture et suppression de fichiers ainsi que d’un terminal avec Git, GitHub CLI, Node et npm. Le harness reste connecté uniquement dans son conteneur de compte : les outils sont appelés par décisions structurées validées par Jarvis, pas par un shell dans le conteneur qui contient les identifiants.
 
-Le code de référence est inclus dans l’image de développement ; ce lot cible **Jarvis**, sans importer d’autre dépôt. Chaque mission travaille sur un volume séparé et une branche locale. Aucun montage du dépôt hôte, aucun secret, aucun réseau ni socket Docker n’est donné aux outils. Les dépendances existantes sont disponibles depuis l’image. GitHub CLI est installé, **sans connexion à GitHub** : push, pull requests, nouvelles dépendances et navigateur automatisé dans la sandbox restent à intégrer.
+Sans dépôt GitHub configuré, le code de référence est inclus dans l’image de développement. Avec GitHub configuré, chaque mission part d’un commit distant figé ; le lockfile doit correspondre aux dépendances approuvées de l’image. Chaque mission travaille sur un volume séparé et une branche locale. Aucun montage du dépôt hôte, aucun secret, aucun réseau ni socket Docker n’est donné aux outils. Les dépendances existantes sont disponibles depuis l’image. Le terminal reste sans connexion GitHub. Un service séparé gère la connexion du propriétaire, la copie distante et les PR. Les nouvelles dépendances et le navigateur automatisé dans la sandbox restent à intégrer.
 
-Le résultat comprend le diff téléchargeable, son SHA-256, les vérifications TypeScript/tests unitaires de référence et une revue indépendante. Le validateur travaille sur une copie figée et restaure les tests unitaires et la configuration TypeScript de référence ; il n’utilise pas une commande de test inventée par le développeur. Il ne remplace pas les tests d’intégration, E2E et de sécurité nécessaires avant publication. Aucun patch n’est appliqué au serveur, poussé ou déployé dans ce lot.
+Le résultat comprend le diff téléchargeable, son SHA-256, les vérifications TypeScript/tests unitaires de référence et une revue indépendante. Le validateur travaille sur une copie figée et restaure les tests unitaires et la configuration TypeScript de référence ; il n’utilise pas une commande de test inventée par le développeur. Il ne remplace pas les tests d’intégration, E2E et de sécurité nécessaires avant publication. Une proposition issue de GitHub peut créer une branche et une PR en brouillon via le bouton dédié. Aucun patch n’est appliqué au serveur, fusionné ou déployé.
 
 Bornes : une modification par mission, 20 tours du développeur, 32 appels au modèle au total, 30 minutes ; 5 minutes par appel, 90 secondes par commande. Le patch est limité à 20 fichiers et 100 000 caractères ; au-delà de 42 000 caractères, il reste téléchargeable mais la revue automatique est refusée. Les opérations et annulations sont idempotentes ; un résultat d’outil inconnu n’est pas rejoué aveuglément. Les journaux et volumes de travail sont conservés pour diagnostic. Voir [les détails et limites](specs/11-outils-developpement.md).
 
@@ -144,3 +144,22 @@ ne sont pas conservés. Le texte transcrit suit ensuite le fonctionnement normal
 du brouillon puis des messages. La réponse audio (TTS) n'est pas encore incluse.
 Configuration, développement local et compatibilité Docker :
 [spécification STT](specs/16-voice-stt.md).
+
+## Connecter GitHub et préparer une pull request
+
+Dans **Réglages → GitHub · Développement**, cliquer sur **Se connecter à GitHub
+dans le navigateur**, ouvrir le lien officiel, saisir le code puis autoriser
+GitHub CLI. Vérifier et enregistrer **rl-safeyes/jarvis**, branche **main**.
+
+Les nouvelles missions de développement figent un commit distant. Après tests
+réussis, revue favorable et fin de mission, cliquer sur **Créer une pull request
+en brouillon**. Jarvis crée une branche dédiée et conserve le lien vers la PR.
+Aucune fusion ni aucun déploiement. Si la branche de départ a changé, lancer une
+nouvelle mission. Les anciennes propositions locales restent téléchargeables.
+
+Les commits locaux non poussés ne sont pas présents sur GitHub. Publier la version
+courante sur la branche choisie et reconstruire l’image de développement pour que
+la source distante, les dépendances et les tests de référence soient cohérents.
+La connexion GitHub reste dans un conteneur dédié ; les agents n’ont pas le jeton.
+Voir [la spécification GitHub](specs/17-github-pull-requests.md) pour la reprise,
+les limites et le déploiement.

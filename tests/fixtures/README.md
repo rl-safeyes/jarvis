@@ -73,3 +73,18 @@ node tests/fixtures/check-claude-subscription.mjs
 La recette monte la CLI factice `claude.mjs` dans un conteneur jetable avec réseau désactivé et un répertoire de compte temporaire. Elle vérifie l’aller-retour du code, le refus d’une autre session, l’inférence en mode abonnement sans clé API, l’échec de quota sans repli API, la persistance après redémarrage, le changement explicite vers l’API et la déconnexion. Le conteneur et son répertoire temporaire sont supprimés à la fin. `CLAUDE_FIXTURE_IMAGE` permet de choisir une autre image de base compatible ; aucun compte réel n’est monté.
 
 Les tests unitaires `claude-auth.test.mjs` couvrent aussi expiration, URL officielle, code incorrect et refus d’une authentification Console présentée comme abonnement. Ces résultats ne remplacent pas un test de profil avec le véritable abonnement du propriétaire.
+
+## Recette source GitHub sans compte
+
+Après reconstruction de `jarvis-development:current` :
+
+```bash
+node tests/fixtures/check-github-source.mjs
+```
+
+Crée un volume de sources synthétiques en lecture seule, prépare une copie de
+travail writable, modifie un fichier, fige le diff relatif à cette source et
+exécute les vérifications de référence TypeScript/unitaires (y compris `.mjs`).
+Vérifie l'absence de jeton GitHub, de volume de connexion, de réseau et de socket
+Docker. Supprime uniquement les conteneurs et volumes éphémères de cette recette.
+Aucune connexion ni publication GitHub réelle.

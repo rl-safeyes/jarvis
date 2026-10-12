@@ -1,3 +1,4 @@
+import { GitHubPublication } from './GitHubPublication.tsx';
 import type { DevelopmentChange } from '../../../packages/contracts/src/development.ts';
 const labels: Record<string, string> = {
   working: 'Développement en cours',
@@ -17,7 +18,7 @@ export function DevelopmentChanges({ changes }: { changes: DevelopmentChange[] }
         <article className="development-change" key={c.id}>
           <h3>{labels[c.status] ?? c.status}</h3>
           <p>{c.task}</p>
-          <p className="muted">Copie isolée de Jarvis · Aucune publication</p>
+          <p className="muted">Copie isolée de Jarvis · Aucun déploiement</p>
           {c.artifact && (
             <>
               <p>
@@ -51,6 +52,7 @@ export function DevelopmentChanges({ changes }: { changes: DevelopmentChange[] }
               <p className="preserved-text">{c.review.summary}</p>
             </details>
           )}
+          <GitHubPublication change={c} />
           {c.error && <p className="notice error">{c.error}</p>}
         </article>
       ))}

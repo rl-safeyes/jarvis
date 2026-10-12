@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { githubErrors } from '../api/src/github-errors.ts';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { Pool, transaction, DomainError } from '@jarvis/storage';
 import { missionEvent } from '../../packages/storage/src/agents.ts';
@@ -113,9 +114,13 @@ export class DevelopmentWorkflow {
         ]);
         if (found.rowCount !== 2)
           throw new DomainError(400, 'agent_missing', 'Développeur ou reviewer introuvable.');
+        const github = (await c.query('SELECT * FROM github_settings')).rows[0];
+        const source = github?.repository
+          ? { repository: github.repository, branch: github.base_branch }
+          : null;
         return (
           await c.query(
-            'INSERT INTO development_changes(id,mission_id,task,developer_id,reviewer_id,image_digest) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(mission_id) DO UPDATE SET mission_id=EXCLUDED.mission_id RETURNING *',
+            'INSERT INTO development_changes(id,mission_id,task,developer_id,reviewer_id,image_digest,source) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(mission_id) DO UPDATE SET mission_id=EXCLUDED.mission_id RETURNING *',
             [
               randomUUID(),
               missionId,
@@ -123,6 +128,7 @@ export class DevelopmentWorkflow {
               input.agent_id,
               input.reviewer_id,
               image.image_digest,
+              source,
             ],
           )
         ).rows[0];
@@ -146,7 +152,36 @@ export class DevelopmentWorkflow {
     )
       return change;
     try {
-      const ready = await this.operation(change, 0, { tool: 'initialize' });
+      if (change.source && !change.source.commit) {
+        while (true) {
+          this.pulse();
+          await this.check();
+          const snapshot = await this.supervisor.call({
+            action: 'github_snapshot',
+            id: change.id,
+            repository: change.source.repository,
+            branch: change.source.branch,
+          });
+          if (snapshot.state === 'failed')
+            throw new DomainError(
+              422,
+              'github_snapshot_failed',
+              githubErrors[snapshot.error_code] ?? githubErrors.github_unavailable!,
+            );
+          if (snapshot.state === 'succeeded') {
+            change.source = snapshot.result;
+            await this.update(
+              change.id,
+              { source: snapshot.result },
+              'Commit GitHub figé pour cette mission.',
+            );
+            break;
+          }
+          await sleep(this.pollMs);
+        }
+      }
+      const source = change.source ? { source_id: change.id } : {};
+      const ready = await this.operation(change, 0, { tool: 'initialize', ...source });
       if (ready.state !== 'succeeded')
         throw new DomainError(
           422,
@@ -212,7 +247,7 @@ export class DevelopmentWorkflow {
           'development_budget',
           'Limite de 20 tours du développeur atteinte.',
         );
-      const frozen = await this.operation(change, 100, { tool: 'freeze' });
+      const frozen = await this.operation(change, 100, { tool: 'freeze', ...source });
       if (frozen.state !== 'succeeded')
         throw new DomainError(
           422,

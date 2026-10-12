@@ -50,3 +50,7 @@ Les vérifications couvrent la compilation et les tests unitaires de référence
 Les conteneurs arrêtés et les volumes de travail/artefact sont conservés. Pour une maintenance, identifier les objets avec les labels `jarvis.owner` et `jarvis.development`, ne nettoyer qu’une mission terminale et préserver les volumes de compte. Le nettoyage automatique avec rétention reste à livrer. Supprimer un journal d’opération encore actif casserait la garantie d’idempotence.
 
 Bornes actuelles : 20 tours développeur, 32 appels modèle au total, 30 minutes de mission, 5 minutes par appel ; 90 secondes par commande, 4 minutes maximum par opération supervisée ; 3 000 fichiers et 32 Mo de code exporté, 2 Mo par fichier existant, écriture de 60 000 caractères, lecture par tranches de 16 000. Diff de 20 fichiers et 100 000 caractères maximum ; revue automatique jusqu’à 42 000 caractères de patch. Ces bornes ne sont pas un plafond de facturation fournisseur.
+
+## Évolution GitHub
+
+Le [lot GitHub](17-github-pull-requests.md) complète cette première tranche : source distante figée, copie en lecture seule, connexion propriétaire dans un service séparé et PR en brouillon. Les limites historiques ci-dessus sur l’absence de source distante/PR ne concernent plus ce parcours. Le terminal des agents reste sans réseau ni credentials ; aucune nouvelle dépendance, fusion ou release automatique n’est ajoutée.

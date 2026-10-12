@@ -1,3 +1,5 @@
+import { publishGitHubChange } from './github-publication.ts';
+import { githubErrors } from '../api/src/github-errors.ts';
 import { Orchestrator } from './orchestration.ts';
 import { heartbeat } from '@temporalio/activity';
 import { randomUUID } from 'node:crypto';
@@ -66,6 +68,10 @@ export async function executeOperation(id: string): Promise<void> {
   const pulse = setInterval(() => heartbeat(), 5000);
   heartbeat();
   try {
+    if (op.kind === 'github_publish') {
+      await publishGitHubChange(pool, supervisor, id, op.payload.change_id, heartbeat);
+      return;
+    }
     if (op.kind === 'install') {
       await pool.query(
         "UPDATE harness_installations SET state='installing',error=NULL WHERE id=$1",
@@ -202,6 +208,11 @@ export async function executeOperation(id: string): Promise<void> {
     if (Context.current().info.attempt < 3) throw error;
     const message =
       'Opération interrompue. Vérifiez le runtime, la connexion et le modèle puis relancez explicitement.';
+    if (op.kind === 'github_publish')
+      await pool.query(
+        "UPDATE github_publications SET state='failed',error=$2,updated_at=now() WHERE operation_id=$1",
+        [id, githubErrors.github_unavailable],
+      );
     if (op.kind === 'mission') {
       let confirmed = true;
       try {

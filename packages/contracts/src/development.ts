@@ -61,6 +61,7 @@ export interface DevelopmentChange {
   status: string;
   task: string;
   image_digest: string;
+  source?: { repository: string; branch: string; commit?: string; snapshot_id?: string } | null;
   artifact: {
     patch: string;
     digest: string;

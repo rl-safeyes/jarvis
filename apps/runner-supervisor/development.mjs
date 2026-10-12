@@ -135,6 +135,17 @@ export function developmentRunner(docker, prefix) {
               '--mount',
               `type=volume,source=${prefix}-artifact-${input.workspace_id},target=/artifact${input.operation.tool === 'validate' ? ',readonly' : ''}`,
             );
+          if (input.operation.source_id) {
+            if (
+              !uuid(input.operation.source_id) ||
+              input.operation.source_id !== input.workspace_id
+            )
+              throw new Error('invalid_source');
+            args.push(
+              '--mount',
+              `type=volume,source=${prefix}-github-sources,target=/github-sources,readonly`,
+            );
+          }
           args.push(
             input.image_digest,
             Buffer.from(

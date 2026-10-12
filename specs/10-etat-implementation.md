@@ -23,13 +23,13 @@ Mise à jour : 12 octobre 2026. Le premier socle simulé est conservé pour les 
 | Contrôle | Annulation demandée puis vérifiée côté runtime, invalidation des profils après changement de compte |
 | Secrets | Clés API Claude/OpenCode chiffrées AES-GCM ; cache natif Codex dans un volume dédié protégé, jamais copié de l’hôte |
 
-| Développement isolé | Copie Jarvis, outils fichiers/Git/terminal, patch figé, vérifications de référence et revue indépendante ; publication non intégrée |
+| Développement isolé | Copie Jarvis, outils fichiers/Git/terminal, patch figé, vérifications de référence et revue indépendante ; PR en brouillon via GitHub, déploiement non intégré |
 
 ## Limites présentes
 
 Le démarrage réel de la connexion Codex par code appareil est vérifié. Les images de runtime (révision `v2`) exportent le magasin de certificats Mozilla inclus dans Node vers `/etc/ssl/certs/ca-certificates.crt` pour le client HTTPS natif. La vérification TLS reste activée ; ce magasin suit la version de l’image Node. Les erreurs réseau, TLS et refus du fournisseur traversent les couches sous forme de codes filtrés ; aucun diagnostic natif contenant potentiellement des secrets n’est exposé.
 
-Le propriétaire a validé la connexion ChatGPT Business, le profil Codex et une conversation réelle dans Jarvis. Les autres fournisseurs restent à qualifier avec leurs comptes réels. L’installation d’un exécutable ne vaut pas preuve d’accès à un modèle. Les connexions d’abonnement Claude et les autres fournisseurs OpenCode ne sont pas intégrés dans cette tranche.
+Le propriétaire a validé la connexion ChatGPT Business, le profil Codex et une conversation réelle dans Jarvis. Le propriétaire a également validé le parcours Claude par abonnement ; OpenCode reste à qualifier avec un compte réel. L’installation d’un exécutable ne vaut pas preuve d’accès à un modèle. La connexion Claude par abonnement est intégrée et le propriétaire a confirmé son bon fonctionnement. Les autres fournisseurs OpenCode restent à qualifier.
 
 Les outils natifs restent désactivés dans les conteneurs de compte. Les messages autorisés en mode développement peuvent utiliser les outils du service isolé décrits dans [le lot développement](11-outils-developpement.md). Les autres conversations restent sans accès au dépôt ni au terminal. Les spécialistes peuvent être créés et appelés pour rédiger ou analyser le contexte fourni. Ils ne peuvent pas déléguer à leur tour. Les spécialistes désignés pour une mission de développement disposent uniquement des outils bornés de cette mission. La création valide le schéma, le profil et l’absence de nouvelles capacités ; les évaluations qualitatives automatiques restent à ajouter. Les fiches actuelles ne constituent pas encore le registre complet de manifestes v2 avec suites d’évaluation.
 
@@ -67,8 +67,8 @@ Les décisions du planificateur utilisent trois objets JSON validés (`reply`, `
 
 1. Qualifier les autres fournisseurs et ajouter les évaluations qualitatives des agents.
 2. Compléter streaming, états de quota/reconnexion, budgets, sessions et gestion des versions de runtime.
-3. Compléter les outils : autres dépôts, connexion GitHub, nouvelles dépendances et navigateur de test.
-4. Ajouter développement/review, préproduction et publication avec retour arrière selon le risque.
+3. Compléter les outils : projets aux dépendances différentes, nouvelles dépendances et navigateur de test.
+4. Ajouter préproduction, fusion, déploiement et retour arrière selon le risque.
 
 
 ## Validation du parcours abonnement Claude
@@ -77,6 +77,8 @@ Les décisions du planificateur utilisent trois objets JSON validés (`reply`, `
 - Recette Docker avec CLI factice : connexion, inférence sans clé API, quota sans repli, redémarrage, passage explicite à l’API et déconnexion.
 - CLI Claude réelle `2.1.296` : création du lien d’abonnement officiel et annulation vérifiées dans un compte Docker vierge, sans connexion du propriétaire ni inférence.
 - Interface ordinateur et format mobile vérifiée avec réponses de connexion simulées, affichage du mode actif et traitement d’un code refusé.
-- App, superviseur et recette Claude `v3` déployés localement ; volumes de comptes et profil global conservés. Le propriétaire doit terminer le parcours Claude et tester son profil pour qualifier l’accès réel à son abonnement.
+- App, superviseur et recette Claude `v3` déployés localement ; volumes de comptes et profil global conservés. Le propriétaire a ensuite confirmé que ce parcours fonctionne avec son abonnement.
 
 La dictée STT est implémentée via Speaches/faster-whisper CPU en français, avec capture PWA, relecture avant envoi et moteur Docker dédié. Voir [dictée vocale](16-voice-stt.md).
+
+Le lot [GitHub et PR](17-github-pull-requests.md) ajoute la connexion navigateur, le dépôt/branche configurables, la source distante figée et les PR en brouillon après validation explicite du propriétaire. Développement/review et préparation de PR sont disponibles ; la release autonome reste à livrer.

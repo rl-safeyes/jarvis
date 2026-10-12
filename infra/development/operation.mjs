@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 const input = JSON.parse(Buffer.from(process.argv[2], 'base64').toString());
 const root = '/workspace/repo',
   reference = '/opt/reference';
+const source = input.source_id ? `/github-sources/${input.source_id}/repo` : reference;
 const excluded = new Set(['.git', 'node_modules', 'dist', 'test-results', 'playwright-report']);
 const limit = 32 * 1024 * 1024;
 async function files(dir, prefix = '', result = []) {
@@ -32,6 +33,7 @@ async function copySource(from, to) {
       throw new Error('Limite de taille du code dépassée.');
     await fs.mkdir(path.dirname(path.join(to, name)), { recursive: true });
     await fs.copyFile(path.join(from, name), path.join(to, name));
+    await fs.chmod(path.join(to, name), st.mode & 0o111 ? 0o755 : 0o644);
   }
 }
 async function dependencies(target) {
@@ -87,6 +89,8 @@ function command(command, args, cwd = root, timeout = 90000, outputSize = 16000)
         HOME: '/tmp/home',
         LANG: 'C.UTF-8',
         CI: '1',
+        // Trusted executable test fixtures stay on the image; /tmp remains noexec.
+        JARVIS_TEST_EXECUTABLE_DIR: reference + '/tests/unit/fixtures',
         GIT_CONFIG_NOSYSTEM: '1',
         GIT_CONFIG_GLOBAL: '/dev/null',
         GIT_TERMINAL_PROMPT: '0',
@@ -153,7 +157,15 @@ async function execute() {
   await fs.mkdir('/tmp/home', { recursive: true });
   if (input.tool === 'initialize') {
     // A failed initialization is never retried under a different operation id.
-    await copySource(reference, root);
+    if (input.source_id) {
+      const lock = await fs.readFile(source + '/package-lock.json');
+      const approved = await fs.readFile(reference + '/package-lock.json');
+      if (!lock.equals(approved))
+        throw new Error(
+          'Le lockfile GitHub diffère des dépendances approuvées. Reconstruisez l’image de développement depuis cette version du dépôt.',
+        );
+    }
+    await copySource(source, root);
     await dependencies(root);
     await git(['init', '-b', `jarvis/${input.change_id}`]);
     await git(['add', '--force', '--', '.', ':(exclude)node_modules']);
@@ -197,7 +209,7 @@ async function execute() {
   }
   if (input.tool === 'freeze') {
     const stage = '/tmp/artifact';
-    await copySource(reference, stage);
+    await copySource(source, stage);
     await git(['init', '-b', 'candidate'], stage);
     await git(['add', '--force', '.'], stage);
     await git(['commit', '-m', 'Reference'], stage);
@@ -256,7 +268,7 @@ async function execute() {
       90000,
     );
     const testFiles = (await fs.readdir(dir + '/tests/unit'))
-      .filter((f) => f.endsWith('.test.ts'))
+      .filter((f) => f.endsWith('.test.ts') || f.endsWith('.test.mjs'))
       .map((f) => 'tests/unit/' + f);
     const tests = await command(
       'node',

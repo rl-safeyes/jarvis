@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, readFile, rm, chmod } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -11,30 +11,10 @@ import {
 
 async function fixture(t, { lifetime = 10000, mode = 'success' } = {}) {
   const dir = await mkdtemp(join(tmpdir(), 'jarvis-claude-auth-'));
-  const command = join(dir, 'claude');
-  await writeFile(
-    command,
-    `#!${process.execPath}
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
-import { createInterface } from 'node:readline';
-const file = process.env.FIXTURE_STATE;
-if (process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || process.env.CLAUDE_CODE_OAUTH_TOKEN) process.exit(9);
-if (process.argv[3] === 'logout') { if (existsSync(file)) unlinkSync(file); process.exit(0); }
-if (process.argv[3] === 'status') {
- console.log(JSON.stringify(existsSync(file) ? JSON.parse(readFileSync(file)) : {loggedIn:false,authMethod:'none'}));
- process.exit(existsSync(file) ? 0 : 1);
-}
-if (process.argv[3] !== 'login' || !process.argv.includes('--claudeai')) process.exit(8);
-console.log('If the browser did not open: https://claude.com/cai/oauth/authorize?state=fixture-state&code_challenge=fixture-challenge');
-console.log('Paste code here if prompted >');
-createInterface({input:process.stdin}).on('line', code => {
- if(code !== 'fixture-code#fixture-state') { console.error('private-code:' + code); process.exit(1); }
- writeFileSync(file, JSON.stringify({loggedIn:true,authMethod:process.env.FIXTURE_MODE === 'api' ? 'api_key' : 'claude.ai',email:'private@example.invalid'}));
- process.exit(0);
-});
-`,
+  const command = join(
+    process.env.JARVIS_TEST_EXECUTABLE_DIR ?? new URL('./fixtures/', import.meta.url).pathname,
+    'claude-auth.mjs',
   );
-  await chmod(command, 0o700);
   const credentialFile = join(dir, 'credential.json');
   const options = {
     command,
