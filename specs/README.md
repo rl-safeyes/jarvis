@@ -52,3 +52,5 @@ Valider d’abord un harness fourni par Docker Jarvis et sa connexion depuis la 
 - [GitHub et pull requests](17-github-pull-requests.md)
 
 - [Préproduction et risque](18-preproduction-et-risque.md)
+
+- [Déploiement et retour arrière](19-deploiement-et-retour-arriere.md)

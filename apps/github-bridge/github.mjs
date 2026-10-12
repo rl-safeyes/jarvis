@@ -1,3 +1,4 @@
+import { exportRelease, mergeRelease } from './releases.mjs';
 import { qualify, trustedPolicy } from './qualification.mjs';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
@@ -163,6 +164,21 @@ export class GitHubBridge {
                 : 'github_unavailable',
       );
     return response.json();
+  }
+  async releasePolicy() {
+    return trustedPolicy(
+      process.env.JARVIS_TRUSTED_ROOT ? new URL(process.env.JARVIS_TRUSTED_ROOT) : undefined,
+    );
+  }
+  async exportRelease(input) {
+    repository(input.repository);
+    branch(input.branch);
+    return exportRelease(this, input);
+  }
+  async mergeRelease(input) {
+    repository(input.repository);
+    branch(input.branch);
+    return mergeRelease(this, input);
   }
   async qualify(input) {
     repository(input.repository);

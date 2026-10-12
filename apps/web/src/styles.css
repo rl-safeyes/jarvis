@@ -1707,3 +1707,5 @@ textarea {
 }
 .release-readiness h4, .release-readiness ul { margin: 0; }
 .release-readiness ul { padding-left: 1.25rem; line-height: 1.5; }
+
+.release-image { overflow-wrap: anywhere; font-size: 0.8rem; }

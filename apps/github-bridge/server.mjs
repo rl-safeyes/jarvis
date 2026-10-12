@@ -44,6 +44,15 @@ http
         case 'github_snapshot':
           result = await bridge.snapshot(input);
           break;
+        case 'github_release_policy':
+          result = await bridge.releasePolicy();
+          break;
+        case 'github_release_export':
+          result = await bridge.exportRelease(input);
+          break;
+        case 'github_release_merge':
+          result = await bridge.mergeRelease(input);
+          break;
         case 'github_qualify':
           result = await bridge.qualify(input);
           break;

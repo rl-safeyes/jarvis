@@ -1,3 +1,4 @@
+import { registerDeploymentRoutes } from './deployment-routes.ts';
 import { registerReleaseRoutes } from './release-routes.ts';
 import Fastify from 'fastify';
 import { registerGitHubRoutes } from './github-routes.ts';
@@ -82,7 +83,7 @@ export async function createApp({
     if (!request.url.startsWith('/api/')) return;
     reply.header('Cache-Control', 'no-store');
     reply.header('X-Content-Type-Options', 'nosniff');
-    const path = request.url.split('?')[0];
+    const path = request.url.split('?')[0] ?? '';
     const mutation = !['GET', 'HEAD', 'OPTIONS'].includes(request.method);
     if (mutation && request.headers.origin !== origin)
       throw new DomainError(403, 'origin_denied', 'Origine de la requête refusée.');
@@ -93,6 +94,20 @@ export async function createApp({
     const session = await repo.session(tokenHash);
     if (!session) throw new DomainError(401, 'unauthenticated', 'Votre session a expiré.');
     request.ownerSession = { ...session, tokenHash };
+    if (
+      mutation &&
+      !path.startsWith('/api/v1/auth/') &&
+      !path.startsWith('/api/v1/deployments/') &&
+      !path.endsWith('/commands')
+    ) {
+      const settings = (await repo.pool.query('SELECT maintenance FROM release_settings')).rows[0];
+      if (settings?.maintenance)
+        throw new DomainError(
+          503,
+          'release_maintenance',
+          'Jarvis applique une mise à jour. Réessayez dans quelques instants.',
+        );
+    }
     if (mutation && request.headers['x-csrf-token'] !== session.csrf_token)
       throw new DomainError(403, 'csrf_denied', 'La protection de session a refusé cette requête.');
   });
@@ -179,6 +194,7 @@ export async function createApp({
   registerDevelopmentRoutes(app, repo.pool, new SupervisorClient(supervisorUrl, supervisorToken));
   registerGitHubRoutes(app, repo.pool, new SupervisorClient(supervisorUrl, supervisorToken));
   registerReleaseRoutes(app, repo.pool, new SupervisorClient(supervisorUrl, supervisorToken));
+  registerDeploymentRoutes(app, repo.pool, new SupervisorClient(supervisorUrl, supervisorToken));
   app.get('/api/v1/conversations', async () => ({ conversations: await repo.listConversations() }));
   app.post('/api/v1/conversations', async (request, reply) => {
     const input = createConversationSchema.parse(request.body);

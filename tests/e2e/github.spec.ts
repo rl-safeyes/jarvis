@@ -8,6 +8,8 @@ async function fixture(page: any) {
   let posts = 0;
   let release: any = null;
   let qualifications = 0;
+  let deployment: any = null;
+  let approvals = 0;
   const conversation = {
     id,
     title: 'Proposition GitHub',
@@ -58,6 +60,12 @@ async function fixture(page: any) {
         agents: [],
         operations: [],
       };
+    else if (p === '/release-settings')
+      result = {
+        settings: { controller_online: true, auto_enabled: false, revision: 0 },
+        deployments: [],
+      };
+    else if (p === '/release-policy') result = { digest: '1'.repeat(64) };
     else if (p === '/github') result = { settings, connection };
     else if (p === '/github/connect') {
       expect(request.headers()['x-csrf-token']).toBe('fixture-csrf');
@@ -101,6 +109,7 @@ async function fixture(page: any) {
           commit: 'c'.repeat(40),
           checked_at: new Date().toISOString(),
           policy_version: 'release-readiness-v1',
+          policy_digest: '1'.repeat(64),
           blockers: [],
           risk: { level: 'low', reasons: ['Documentation uniquement'], files: 1, lines: 2 },
           checks: [
@@ -111,6 +120,34 @@ async function fixture(page: any) {
         };
       }
       result = { report: release, stale: false };
+    } else if (p === `/development/${id}/deployment`) {
+      if (request.method() === 'POST')
+        deployment = {
+          id,
+          state: 'awaiting_approval',
+          revision: 1,
+          commit: 'c'.repeat(40),
+          policy_digest: '1'.repeat(64),
+          image: 'sha256:' + 'a'.repeat(64),
+          previous_image: 'sha256:' + 'b'.repeat(64),
+          automatic: false,
+        };
+      result = { deployment };
+    } else if (p === `/deployments/${id}/action`) {
+      const body = request.postDataJSON();
+      expect(body.image).toBe('sha256:' + 'a'.repeat(64));
+      expect(body.commit).toBe('c'.repeat(40));
+      if (body.action === 'approve') {
+        approvals++;
+        deployment = {
+          ...deployment,
+          state: 'monitoring',
+          revision: 2,
+          monitor_until: new Date(Date.now() + 900000).toISOString(),
+        };
+      } else if (body.action === 'rollback')
+        deployment = { ...deployment, state: 'rolled_back', revision: 3 };
+      result = { deployment };
     } else throw new Error('Unexpected route ' + p);
     await route.fulfill({ json: result });
   });
@@ -120,6 +157,7 @@ async function fixture(page: any) {
     },
     posts: () => posts,
     qualifications: () => qualifications,
+    approvals: () => approvals,
   };
 }
 test('GitHub browser connection, repository setup and guide work on desktop and mobile', async ({
@@ -189,4 +227,24 @@ test('preproduction report requires explicit refresh and persists after reload',
   expect(f.qualifications()).toBe(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await region.screenshot({ path: info.outputPath('preproduction.png') });
+});
+
+test('deployment approval binds the prepared image and rollback stays available on mobile', async ({
+  page,
+}) => {
+  const f = await fixture(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Créer une pull request en brouillon' }).click();
+  await page.getByRole('button', { name: 'Vérifier la préproduction' }).click();
+  await page.getByRole('button', { name: 'Préparer la fusion et le déploiement' }).click();
+  await expect(page.getByText('Image testée — approbation attendue')).toBeVisible();
+  expect(f.approvals()).toBe(0);
+  await page.getByRole('button', { name: 'Approuver la fusion et le déploiement' }).click();
+  await expect(page.getByText('Nouvelle version sous surveillance')).toBeVisible();
+  expect(f.approvals()).toBe(1);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Restaurer la version précédente' })).toBeVisible();
+  await page.getByRole('button', { name: 'Restaurer la version précédente' }).click();
+  await expect(page.getByText('Version précédente restaurée', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

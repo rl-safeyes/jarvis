@@ -81,4 +81,4 @@ Les performances d’un agent sont comparées avant et après sur des cas conser
 
 ## Première tranche livrée
 
-Le [lot outils de développement](11-outils-developpement.md) livre la copie isolée, le patch, les tests unitaires de référence et la revue indépendante. La publication en PR, la préproduction éphémère et un premier classement déterministe sont livrés dans les lots 17 et 18. La release de production et le retour arrière restent à implémenter. Une revue favorable produit une proposition, jamais une release.
+Le [lot outils de développement](11-outils-developpement.md) livre la copie isolée, le patch, les tests unitaires de référence et la revue indépendante. La publication en PR, la préproduction éphémère et un premier classement déterministe sont livrés dans les lots 17 et 18. Le lot 19 complète les releases de documentation/interface et le retour arrière. Le backend et les migrations nécessitent encore une procédure opérateur. Une revue favorable seule ne déclenche aucune release.

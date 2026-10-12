@@ -25,6 +25,11 @@ test('GitHub configuration and publication require owner approval bound to the t
     for await (const b of req) body += b;
     const input = JSON.parse(body);
     calls.push(input);
+    if (input.action === 'github_release_policy') {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ digest: '1'.repeat(64) }));
+      return;
+    }
     if (input.action === 'github_qualify') {
       if (alterDuringQualification)
         await pool.query("UPDATE github_settings SET base_branch='changed'");
@@ -211,6 +216,77 @@ test('GitHub configuration and publication require owner approval bound to the t
     const saved = (await app.inject({ url: releaseUrl, headers })).json();
     assert.deepEqual(saved.report, qualified.json().report);
     assert.equal(saved.stale, false);
+
+    await pool.query('UPDATE release_settings SET controller_seen_at=now()');
+    const deploymentUrl = `/api/v1/development/${id}/deployment`;
+    const prepare = () =>
+      app.inject({
+        method: 'POST',
+        url: deploymentUrl,
+        headers,
+        payload: { digest, commit: 'b'.repeat(40), policy_digest: '1'.repeat(64) },
+      });
+    const prepared = await Promise.all([prepare(), prepare(), prepare()]);
+    for (const r of prepared) assert.equal(r.statusCode, 202, r.body);
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM deployments')).rows[0].n, 1);
+    const deployment = prepared[0]!.json().deployment;
+    const image = 'sha256:' + 'a'.repeat(64);
+    await pool.query("UPDATE deployments SET state='awaiting_approval',artifact=$2 WHERE id=$1", [
+      deployment.id,
+      { image, previous_image: 'sha256:' + 'b'.repeat(64) },
+    ]);
+    const action = {
+      action: 'approve',
+      revision: 0,
+      image,
+      commit: 'b'.repeat(40),
+      policy_digest: '1'.repeat(64),
+    };
+    const act = (body: any, h: any = headers) =>
+      app.inject({
+        method: 'POST',
+        url: `/api/v1/deployments/${deployment.id}/action`,
+        headers: h,
+        payload: body,
+      });
+    assert.equal((await act(action, { origin, cookie })).statusCode, 403);
+    assert.equal((await act({ ...action, image: 'sha256:' + 'c'.repeat(64) })).statusCode, 409);
+    assert.equal((await act(action)).statusCode, 202);
+    assert.equal((await act(action)).statusCode, 409, 'stale approval cannot be reused');
+    assert.equal(
+      (await pool.query('SELECT state FROM deployments WHERE id=$1', [deployment.id])).rows[0]
+        .state,
+      'queued',
+    );
+    await pool.query("UPDATE deployments SET state='succeeded' WHERE id=$1", [deployment.id]);
+    assert.equal((await act({ ...action, action: 'rollback', revision: 1 })).statusCode, 202);
+    await pool.query("UPDATE deployments SET state='rolled_back' WHERE id=$1", [deployment.id]);
+    const auto = await app.inject({
+      method: 'POST',
+      url: '/api/v1/release-settings',
+      headers,
+      payload: { auto_enabled: true, revision: 0, policy_digest: '1'.repeat(64) },
+    });
+    assert.equal(auto.statusCode, 200, auto.body);
+    assert.equal(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/api/v1/release-settings',
+          headers,
+          payload: { auto_enabled: true, revision: 1, policy_digest: '2'.repeat(64) },
+        })
+      ).statusCode,
+      409,
+    );
+    await pool.query('UPDATE release_settings SET maintenance=true');
+    assert.equal(
+      (await app.inject({ method: 'POST', url: '/api/v1/github/connect', headers, payload: {} }))
+        .statusCode,
+      503,
+    );
+    assert.equal((await app.inject({ url: '/api/v1/conversations', headers })).statusCode, 200);
+    await pool.query('UPDATE release_settings SET maintenance=false');
     alterDuringQualification = true;
     assert.equal(
       (await qualify()).statusCode,

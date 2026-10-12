@@ -6,6 +6,10 @@ export const trustedPaths = [
   'scripts/preproduction.mjs',
   'scripts/preproduction-probe.mjs',
   'infra/Dockerfile',
+  'apps/github-bridge/releases.mjs',
+  'apps/release-controller/main.ts',
+  'apps/release-controller/engine.mjs',
+  'apps/release-controller/docker.mjs',
 ];
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 export async function trustedPolicy(root = new URL('../../', import.meta.url)) {

@@ -97,9 +97,9 @@ Pour mettre à jour le lot : pousser la version approuvée, construire les image
 `github`, `supervisor`, `app`, `worker` et `development-image`, puis redémarrer les
 services lorsque les missions sont terminées. Conserver les volumes et les comptes.
 
-Reste à livrer : approbation sur version précise, fusion contrôlée, publication
-d’image, déploiement, surveillance, rollback et activation de l’autonomie faible
-risque. Aucun de ces droits n’est exposé aux agents par ce lot.
+Le [lot 19](19-deploiement-et-retour-arriere.md) complète les approbations, la fusion,
+les images locales, le déploiement de l’interface et le rollback. Le registre distant
+d’images et les migrations restent hors périmètre. Aucun de ces droits n’est exposé aux agents.
 
 Documentation officielle : [workflow runs](https://docs.github.com/en/rest/actions/workflow-runs),
 [workflow jobs](https://docs.github.com/en/rest/actions/workflow-jobs).

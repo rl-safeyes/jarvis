@@ -172,5 +172,19 @@ la classe de risque et les contrôles réussis ou bloquants. La préproduction d
 l’image applicative avec une base temporaire et un moteur simulé, sans comptes ni
 données de production. Un rapport doit être actualisé après tout changement.
 
-La fusion, le déploiement et le retour arrière automatiques restent à livrer.
+La fusion, le déploiement de l’interface et le rollback sont complétés par le lot 19.
 Voir [le fonctionnement et les limites](specs/18-preproduction-et-risque.md).
+
+## Releases depuis Jarvis
+
+Pour une proposition de documentation ou d’interface : publier la PR, vérifier la
+préproduction, puis **Préparer la fusion et le déploiement**. Jarvis construit et
+teste l’image avant de proposer **Approuver la fusion et le déploiement**. L’ancienne
+version reste disponible via **Restaurer la version précédente**.
+
+Le contrôleur indépendant surveille la nouvelle application pendant quinze minutes.
+Le mode automatique documentaire s’active dans **Réglages → Releases et retour
+arrière** ; il est désactivé à l’installation. Les modifications de backend, de
+dépendances ou de données restent soumises à une procédure opérateur.
+
+Voir [installation, garanties et limites](specs/19-deploiement-et-retour-arriere.md).

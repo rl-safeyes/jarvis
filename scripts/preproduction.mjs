@@ -1,12 +1,14 @@
 // Run only on an isolated CI runner or by an operator. No production configuration is read.
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { writeFile, mkdir } from 'node:fs/promises';
+import { writeFile, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 const image = process.argv[2];
 if (!image || !/^sha256:[a-f0-9]{64}$/.test(image))
   throw new Error('Immutable Docker image ID required');
-const prefix = 'jarvis-preprod-' + randomBytes(6).toString('hex');
+const stableId = process.env.JARVIS_PREPROD_ID;
+if (stableId && !/^[a-f0-9-]{36}$/.test(stableId)) throw new Error('Invalid fixture id');
+const prefix = 'jarvis-preprod-' + (stableId ?? randomBytes(6).toString('hex'));
 const password = randomBytes(32).toString('hex');
 const origin = `http://${prefix}-app:3000`;
 async function docker(args, input) {
@@ -45,6 +47,7 @@ for (const signal of ['SIGTERM', 'SIGINT'])
     }
   });
 try {
+  if (stableId) await cleanup();
   await docker(['network', 'create', '--internal', prefix]);
   await docker([
     'run',
@@ -105,37 +108,40 @@ try {
     image,
   ]);
   const probe = path.resolve('scripts/preproduction-probe.mjs');
-  const output = await docker([
-    'run',
-    '--rm',
-    '--name',
-    `${prefix}-probe`,
-    '--network',
-    prefix,
-    '--read-only',
-    '--cap-drop',
-    'ALL',
-    '--security-opt',
-    'no-new-privileges:true',
-    '--memory',
-    '256m',
-    '--pids-limit',
-    '32',
-    '-e',
-    `PROBE_ORIGIN=${origin}`,
-    '-e',
-    `PROBE_PASSWORD=${password}`,
-    '--mount',
-    `type=bind,source=${probe},target=/probe.mjs,readonly`,
-    '--entrypoint',
-    'node',
-    image,
-    '/probe.mjs',
-  ]);
+  const output = await docker(
+    [
+      'run',
+      '--rm',
+      '-i',
+      '--name',
+      `${prefix}-probe`,
+      '--network',
+      prefix,
+      '--read-only',
+      '--cap-drop',
+      'ALL',
+      '--security-opt',
+      'no-new-privileges:true',
+      '--memory',
+      '256m',
+      '--pids-limit',
+      '32',
+      '-e',
+      `PROBE_ORIGIN=${origin}`,
+      '-e',
+      `PROBE_PASSWORD=${password}`,
+      '--entrypoint',
+      'node',
+      image,
+      '--input-type=module',
+    ],
+    await readFile(probe),
+  );
   console.log(output);
-  await mkdir('test-results', { recursive: true });
+  const reportDir = process.env.JARVIS_PROBE_REPORT_DIR ?? 'test-results';
+  await mkdir(reportDir, { recursive: true });
   await writeFile(
-    'test-results/preproduction.json',
+    path.join(reportDir, 'preproduction.json'),
     JSON.stringify(
       {
         image,

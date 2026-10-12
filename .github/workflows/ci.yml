@@ -70,7 +70,7 @@ jobs:
         with:
           node-version: 24
       - name: Build immutable application image
-        run: docker build -f infra/Dockerfile -t jarvis-preproduction:check .
+        run: docker build --build-arg JARVIS_SOURCE_COMMIT="$GITHUB_SHA" -f infra/Dockerfile -t jarvis-preproduction:check .
       - name: Prepare synthetic database image
         run: docker pull postgres:16-alpine
       - name: Verify isolated preproduction

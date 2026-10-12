@@ -1,3 +1,4 @@
+import { evidence } from '../../apps/github-bridge/releases.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
@@ -227,4 +228,50 @@ test('changed base, corrupted digest, protected workflows and revoked auth block
   r = await f.finish(() => f.bridge.publish(f.input));
   assert.equal(r.error_code, 'github_disconnected');
   assert.equal(f.calls.filter((c) => c.path.endsWith('/git/refs')).length, 0);
+});
+
+test('release source exports the exact reviewed tree without credentials and rejects cumulative backend changes', async (t) => {
+  const f = await fixture(t);
+  await run(['add', 'README.md'], f.remote);
+  await run(['commit', '-m', 'Candidate'], f.remote);
+  const commit = (await run(['rev-parse', 'HEAD'], f.remote)).toString().trim();
+  const report = {
+    state: 'passed',
+    commit,
+    patch_digest: f.input.digest,
+    policy_digest: 'd'.repeat(64),
+    run: { id: 1, attempt: 1 },
+    risk: { level: 'low' },
+  };
+  let changed = 'README.md';
+  f.bridge.qualify = async () => report;
+  f.bridge.api = async (route) =>
+    route.includes('/compare/')
+      ? { status: 'ahead', merge_base_commit: { sha: f.commit }, files: [{ filename: changed }] }
+      : [{ filename: 'README.md' }];
+  const input = {
+    ...f.input,
+    commit,
+    release_id: ID2,
+    deployed_commit: f.commit,
+    policy_digest: report.policy_digest,
+    evidence: evidence(report),
+  };
+  const result = await f.finish(() => f.bridge.exportRelease(input));
+  assert.equal(result.state, 'succeeded', JSON.stringify(result));
+  const dir = path.join(f.sources, 'releases', ID2, 'repo');
+  assert.equal(await fs.readFile(path.join(dir, 'README.md'), 'utf8'), 'Base\nProposition\n');
+  await assert.rejects(fs.access(path.join(dir, '.env.example')));
+  await assert.rejects(fs.access(path.join(dir, '.git')));
+  assert.equal((await fs.stat(path.join(dir, 'README.md'))).mode & 0o222, 0);
+  assert.equal((await f.bridge.exportRelease(input)).result.commit, commit);
+  await assert.rejects(
+    f.bridge.exportRelease({ ...input, deployed_commit: 'f'.repeat(40) }),
+    /github_conflict/,
+  );
+  changed = 'packages/storage/migrations/unsafe.sql';
+  const blocked = await f.finish(() =>
+    f.bridge.exportRelease({ ...input, release_id: '638c9b34-75ca-4a5d-9b0a-aa3a1098d851' }),
+  );
+  assert.equal(blocked.error_code, 'github_release_scope');
 });

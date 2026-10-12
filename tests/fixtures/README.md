@@ -88,3 +88,11 @@ exécute les vérifications de référence TypeScript/unitaires (y compris `.mjs
 Vérifie l'absence de jeton GitHub, de volume de connexion, de réseau et de socket
 Docker. Supprime uniquement les conteneurs et volumes éphémères de cette recette.
 Aucune connexion ni publication GitHub réelle.
+
+## Remplacement et retour arrière Docker
+
+`node tests/fixtures/check-release-rollback.mjs` utilise l’image locale `jarvis_app`
+et une pile jetable à données synthétiques. Vérifie reprise après interruption,
+conservation du port, remplacement idempotent, restauration et image défectueuse.
+Aucun conteneur du Jarvis actif n’est remplacé ; seules les ressources marquées par
+le préfixe unique de la fixture sont nettoyées.

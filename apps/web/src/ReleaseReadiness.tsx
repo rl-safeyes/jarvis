@@ -1,3 +1,4 @@
+import { DeploymentPanel } from './DeploymentPanel.tsx';
 import { useEffect, useState } from 'react';
 import { api } from './api.ts';
 type Report = {
@@ -5,6 +6,7 @@ type Report = {
   commit: string;
   checked_at: string;
   policy_version: string;
+  policy_digest: string;
   blockers: string[];
   risk: { level: string; reasons: string[]; files: number; lines: number } | null;
   checks: { name: string; passed: boolean }[];
@@ -111,6 +113,15 @@ export function ReleaseReadiness({
             </a>
           )}
         </>
+      )}
+      {report && (
+        <DeploymentPanel
+          id={id}
+          digest={digest}
+          commit={commit}
+          policy={report.policy_digest}
+          eligible={!data?.stale && report.state === 'passed' && report.risk?.level !== 'high'}
+        />
       )}
       <p className="muted">
         La préproduction utilise des données synthétiques et un moteur simulé. Ce rapport ne

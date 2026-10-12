@@ -1,3 +1,4 @@
+import { ReleaseSettings } from './ReleaseSettings.tsx';
 import { useVoiceDictation } from './useVoiceDictation.ts';
 import { DevelopmentChanges } from './DevelopmentChanges.tsx';
 import { AgentDirectory } from './AgentDirectory.tsx';
@@ -922,6 +923,7 @@ function App() {
           <main className="page-content settings">
             <HarnessSettings onChange={() => void refreshRuntime()} />
             <GitHubSettings />
+            <ReleaseSettings />
             <section className="settings-card">
               <h2>
                 <ShieldCheck size={20} />

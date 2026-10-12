@@ -91,6 +91,8 @@ services:
     build:
       context: .
       dockerfile: infra/Dockerfile
+      args:
+        JARVIS_SOURCE_COMMIT: ${JARVIS_SOURCE_COMMIT:-unconfigured}
     command: [./node_modules/.bin/tsx, apps/workflow-worker/main.ts]
     environment:
       DATABASE_URL: postgresql://jarvis:${POSTGRES_PASSWORD}@db:5432/jarvis
@@ -106,6 +108,27 @@ services:
     tmpfs: [/tmp]
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+  release-controller:
+    profiles: [app]
+    init: true
+    build:
+      context: .
+      dockerfile: infra/Dockerfile
+      target: release-controller
+      args:
+        JARVIS_SOURCE_COMMIT: ${JARVIS_SOURCE_COMMIT:-unconfigured}
+    environment:
+      DATABASE_URL: postgresql://jarvis:${POSTGRES_PASSWORD}@db:5432/jarvis
+      JARVIS_SUPERVISOR_TOKEN: ${JARVIS_SUPERVISOR_TOKEN}
+      JARVIS_COMPOSE_PROJECT: ${COMPOSE_PROJECT_NAME:-jarvis}
+    volumes:
+      [/var/run/docker.sock:/var/run/docker.sock, github-sources:/sources:ro, release-state:/state]
+    read_only: true
+    tmpfs: [/tmp]
+    depends_on:
+      db: { condition: service_healthy }
+      github: { condition: service_healthy }
     restart: unless-stopped
   whisper:
     profiles: [app, voice]
@@ -135,6 +158,8 @@ services:
     build:
       context: .
       dockerfile: infra/Dockerfile
+      args:
+        JARVIS_SOURCE_COMMIT: ${JARVIS_SOURCE_COMMIT:-unconfigured}
     init: true
     environment:
       DATABASE_URL: postgresql://jarvis:${POSTGRES_PASSWORD}@db:5432/jarvis
@@ -165,6 +190,7 @@ services:
       retries: 3
     restart: unless-stopped
 volumes:
+  release-state:
   github-state:
   github-sources:
     name: ${JARVIS_RUNTIME_PREFIX:-jarvis}-github-sources

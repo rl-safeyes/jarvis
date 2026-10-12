@@ -39,7 +39,7 @@ Les profils sont immuables dans cette tranche : créer un nouveau profil pour ch
 
 Le dialogue utilise les 20 derniers messages ; le contexte d’orchestration (registre et résultats inclus) est limité à 64 000 caractères. Un dépassement invite à ouvrir une autre conversation ; le résultat complet du spécialiste reste consultable dans ses tâches, tandis que sa restitution au planificateur est bornée à 3 000 caractères. Les événements SSE exposent les étapes ; la réponse est persistée à la fin du tour. Le streaming des tokens, les sessions natives longues et les budgets fins restent à ajouter. Le superviseur possède le socket Docker : il est privilégié et ne doit pas être accessible aux agents.
 
-La synthèse vocale, les notifications, le compagnon desktop, les espaces multiples et le cycle de release autonome ne sont pas réalisés. Jarvis n’est donc pas encore auto-améliorable.
+La synthèse vocale, les notifications, le compagnon desktop et les espaces multiples ne sont pas réalisés. Le cycle est maintenant disponible pour la documentation et l’interface, dans le périmètre strict du lot 19. Les évolutions du cœur nécessitent encore une intervention opérateur.
 
 ## Vérifications
 
@@ -68,7 +68,7 @@ Les décisions du planificateur utilisent trois objets JSON validés (`reply`, `
 1. Qualifier les autres fournisseurs et ajouter les évaluations qualitatives des agents.
 2. Compléter streaming, états de quota/reconnexion, budgets, sessions et gestion des versions de runtime.
 3. Compléter les outils : projets aux dépendances différentes, nouvelles dépendances et navigateur de test.
-4. Ajouter approbation de release, fusion, déploiement et retour arrière selon le risque ; préproduction éphémère et classement documentaire livrés.
+4. Étendre les releases aux services backend et migrations, ajouter rétention, quotas et supervision fonctionnelle.
 
 
 ## Validation du parcours abonnement Claude
@@ -84,3 +84,5 @@ La dictée STT est implémentée via Speaches/faster-whisper CPU en français, a
 Le lot [GitHub et PR](17-github-pull-requests.md) ajoute la connexion navigateur, le dépôt/branche configurables, la source distante figée et les PR en brouillon après validation explicite du propriétaire. Développement/review et préparation de PR sont disponibles ; la release autonome reste à livrer.
 
 Le lot [préproduction et risque](18-preproduction-et-risque.md) ajoute un pipeline Docker avec données synthétiques, un classement déterministe et des rapports persistants liés au commit et à la politique. Aucun merge ni déploiement automatique n’est encore activé.
+
+Le [lot 19](19-deploiement-et-retour-arriere.md) livre la préparation d’images, l’approbation, la fusion conditionnelle, le déploiement de `app`, une surveillance de quinze minutes et le rollback. L’autonomie documentaire est disponible sur activation explicite ; le backend et les migrations restent exclus.
