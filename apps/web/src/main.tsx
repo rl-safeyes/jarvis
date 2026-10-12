@@ -1,3 +1,4 @@
+import { useVoiceDictation } from './useVoiceDictation.ts';
 import { DevelopmentChanges } from './DevelopmentChanges.tsx';
 import { AgentDirectory } from './AgentDirectory.tsx';
 import { AgentTasks } from './AgentTasks.tsx';
@@ -131,6 +132,14 @@ function App() {
   const [streamState, setStreamState] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const voice = useVoiceDictation({
+    context: `${session?.expires_at ?? 'logged-out'}:${view}:${selected ?? 'new'}`,
+    enabled: Boolean(session) && view === 'chat' && online,
+    onText: (text) => {
+      setDraft((previous) => `${previous}${previous && !/\s$/.test(previous) ? ' ' : ''}${text}`);
+      textareaRef.current?.focus();
+    },
+  });
   const latest = detail?.missions.at(-1);
   const active = latest && !isTerminal(latest.status);
 
@@ -289,6 +298,7 @@ function App() {
     }
   }
   function newConversation() {
+    voice.cancel();
     setSelected(null);
     setView('chat');
     setDraft('');
@@ -301,7 +311,7 @@ function App() {
   async function send(event?: React.FormEvent) {
     event?.preventDefault();
     const text = draft.trim();
-    if (!text || sending || !online || active) return;
+    if (!text || text.length > 8000 || voice.busy || sending || !online || active) return;
     setSending(true);
     setError('');
     let pending = pendingRef.current;
@@ -736,7 +746,7 @@ function App() {
                     value={draft}
                     maxLength={8000}
                     rows={2}
-                    disabled={sending}
+                    disabled={sending || voice.busy}
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -758,11 +768,23 @@ function App() {
                       <button
                         type="button"
                         className="icon-button"
-                        disabled
-                        title="La commande vocale sera disponible dans une prochaine étape"
-                        aria-label="Commande vocale à venir"
+                        disabled={
+                          sending ||
+                          !online ||
+                          (!voice.available && !voice.busy) ||
+                          voice.state === 'permission' ||
+                          voice.state === 'transcribing'
+                        }
+                        title={voice.state === 'recording' ? 'Terminer la dictée' : voice.hint}
+                        aria-label={
+                          voice.state === 'recording' ? 'Terminer la dictée' : 'Dicter un message'
+                        }
+                        aria-pressed={voice.state === 'recording'}
+                        onClick={() =>
+                          voice.state === 'recording' ? voice.stop() : void voice.start()
+                        }
                       >
-                        <Mic size={18} />
+                        {voice.state === 'recording' ? <Square size={18} /> : <Mic size={18} />}
                       </button>
                       {active ? (
                         <button
@@ -779,7 +801,12 @@ function App() {
                           className="send-button"
                           aria-label="Envoyer le message"
                           disabled={
-                            !draft.trim() || sending || !online || Boolean(selected && !detail)
+                            !draft.trim() ||
+                            draft.length > 8000 ||
+                            voice.busy ||
+                            sending ||
+                            !online ||
+                            Boolean(selected && !detail)
                           }
                         >
                           <ArrowUp size={21} />
@@ -788,6 +815,27 @@ function App() {
                     </div>
                   </div>
                 </form>
+                <div className="voice-feedback" aria-live="polite" role="status">
+                  <span>
+                    {voice.state === 'recording'
+                      ? `Écoute… ${voice.seconds} / 60 s`
+                      : voice.state === 'permission'
+                        ? 'Autorisez le microphone dans votre navigateur…'
+                        : voice.state === 'transcribing'
+                          ? 'Transcription en cours…'
+                          : voice.message || (voice.available ? '' : voice.hint)}
+                  </span>
+                  {voice.busy && (
+                    <button type="button" onClick={voice.cancel}>
+                      Annuler la dictée
+                    </button>
+                  )}
+                </div>
+                {draft.length > 8000 && (
+                  <p role="alert">
+                    Le message dépasse 8 000 caractères. Raccourcissez-le avant l’envoi.
+                  </p>
+                )}
                 <p className="composer-note">
                   {session.mode === 'mock'
                     ? 'Aucun modèle IA connecté. Vos demandes restent dans cet environnement.'

@@ -1628,3 +1628,29 @@ textarea {
 .harness-help-footer {
   padding: 0 20px 20px;
 }
+
+.voice-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 8px 4px 0;
+}
+.voice-feedback:has(span:empty):not(:has(button)) {
+  display: none;
+}
+.voice-feedback button {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  flex-shrink: 0;
+  min-height: 36px;
+}
+.composer .icon-button[aria-pressed='true'] {
+  color: #fda4af;
+  background: #451a27;
+}

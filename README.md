@@ -2,7 +2,7 @@
 
 Assistant personnel en TypeScript avec PWA, API Fastify, PostgreSQL, Temporal et runtimes de harnesses dans Docker.
 
-Cette version permet d’installer des moteurs du catalogue, connecter des comptes, tester des profils, choisir un défaut et affecter un profil à Jarvis ou aux fiches des spécialistes. Les conversations réelles passent par le harness choisi, avec historique, annulation et suivi durable. Jarvis peut créer des agents par département et leur déléguer des tâches de rédaction ou d’analyse. Les missions de développement peuvent produire un patch testé et revu dans une copie isolée. La voix et la publication autonome ne sont pas encore activées.
+Cette version permet d’installer des moteurs du catalogue, connecter des comptes, tester des profils, choisir un défaut et affecter un profil à Jarvis ou aux fiches des spécialistes. Les conversations réelles passent par le harness choisi, avec historique, annulation et suivi durable. Jarvis peut créer des agents par département et leur déléguer des tâches de rédaction ou d’analyse. Les missions de développement peuvent produire un patch testé et revu dans une copie isolée. La dictée vocale en français utilise Speaches/faster-whisper auto-hébergé. La synthèse vocale et la publication autonome ne sont pas encore activées.
 
 ## Démarrer avec Docker
 
@@ -128,3 +128,19 @@ Le code de référence est inclus dans l’image de développement ; ce lot cibl
 Le résultat comprend le diff téléchargeable, son SHA-256, les vérifications TypeScript/tests unitaires de référence et une revue indépendante. Le validateur travaille sur une copie figée et restaure les tests unitaires et la configuration TypeScript de référence ; il n’utilise pas une commande de test inventée par le développeur. Il ne remplace pas les tests d’intégration, E2E et de sécurité nécessaires avant publication. Aucun patch n’est appliqué au serveur, poussé ou déployé dans ce lot.
 
 Bornes : une modification par mission, 20 tours du développeur, 32 appels au modèle au total, 30 minutes ; 5 minutes par appel, 90 secondes par commande. Le patch est limité à 20 fichiers et 100 000 caractères ; au-delà de 42 000 caractères, il reste téléchargeable mais la revue automatique est refusée. Les opérations et annulations sont idempotentes ; un résultat d’outil inconnu n’est pas rejoué aveuglément. Les journaux et volumes de travail sont conservés pour diagnostic. Voir [les détails et limites](specs/11-outils-developpement.md).
+
+## Dicter un message
+
+Cliquer sur le micro dans le chat, autoriser le microphone, parler puis cliquer
+sur **Terminer la dictée**. Le texte apparaît dans le brouillon : corriger si
+nécessaire, puis envoyer. **Annuler la dictée** abandonne l'enregistrement.
+Limites : 60 secondes et 2 Mo, langue française. Sur iPhone, utiliser HTTPS et
+laisser la PWA au premier plan ; sur ordinateur, localhost est accepté.
+
+Le profil Docker `app` démarre son propre Speaches (faster-whisper-small, CPU
+int8). Aucun compte ni clé API nécessaire. Le premier démarrage télécharge le
+modèle (~0,5 Go) et affiche « Préparation du moteur vocal ». Les enregistrements
+ne sont pas conservés. Le texte transcrit suit ensuite le fonctionnement normal
+du brouillon puis des messages. La réponse audio (TTS) n'est pas encore incluse.
+Configuration, développement local et compatibilité Docker :
+[spécification STT](specs/16-voice-stt.md).

@@ -81,6 +81,29 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     restart: unless-stopped
+  whisper:
+    profiles: [app, voice]
+    image: ghcr.io/speaches-ai/speaches:latest-cpu@sha256:21e3df06d842fb7802ab470dd77c25f0e8c0d22950e8d8c6ae886e851af53ef8
+    environment:
+      WHISPER__COMPUTE_TYPE: int8
+      WHISPER__CPU_THREADS: 4
+      LOG_LEVEL: warning
+      ENABLE_UI: 'false'
+      OPENBLAS_NUM_THREADS: 1
+      HF_HUB_DISABLE_TELEMETRY: '1'
+    volumes: [whisper-models:/home/ubuntu/.cache/huggingface]
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true, 'seccomp:./infra/speaches-seccomp.json']
+    mem_limit: 3g
+    cpus: 4
+    healthcheck:
+      test: [CMD, curl, -f, http://localhost:8000/health]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
   app:
     profiles: [app]
     build:
@@ -91,6 +114,8 @@ services:
       DATABASE_URL: postgresql://jarvis:${POSTGRES_PASSWORD}@db:5432/jarvis
       JARVIS_OWNER_PASSWORD: ${JARVIS_OWNER_PASSWORD:?Exécutez npm run setup}
       APP_ORIGIN: ${JARVIS_PUBLIC_ORIGIN:-http://localhost:3000}
+      WHISPER_URL: http://whisper:8000
+      STT_MODEL: ${STT_MODEL:-Systran/faster-whisper-small}
       HARNESS_MODE: live
       JARVIS_SUPERVISOR_URL: http://supervisor:7080
       JARVIS_SUPERVISOR_TOKEN: ${JARVIS_SUPERVISOR_TOKEN}
@@ -114,5 +139,6 @@ services:
       retries: 3
     restart: unless-stopped
 volumes:
+  whisper-models:
   postgres-data:
   temporal-data:

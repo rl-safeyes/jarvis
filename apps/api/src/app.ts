@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import { registerVoiceRoutes, type VoiceOptions } from './voice.ts';
 import { registerDevelopmentRoutes } from './development-routes.ts';
 import { registerHarnessRoutes } from './harness-routes.ts';
 import { HarnessRepository } from '../../../packages/storage/src/harnesses.ts';
@@ -32,6 +33,7 @@ declare module 'fastify' {
   }
 }
 interface Options {
+  voice?: VoiceOptions;
   repo: Repository;
   password: string;
   origin: string;
@@ -43,6 +45,7 @@ interface Options {
   supervisorToken?: string;
 }
 export async function createApp({
+  voice,
   repo,
   password,
   origin,
@@ -162,6 +165,7 @@ export async function createApp({
     reply.clearCookie('jarvis_session', { path: '/' });
     return reply.code(204).send();
   });
+  await registerVoiceRoutes(app, voice);
   const harnessRepo = new HarnessRepository(repo.pool);
   await harnessRepo.seed();
   await registerHarnessRoutes(

@@ -34,3 +34,27 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
   }
   return response.status === 204 ? (undefined as T) : (response.json() as Promise<T>);
 }
+
+export async function transcribeAudio(
+  audio: Blob,
+  signal: AbortSignal,
+): Promise<{ text: string; durationSec: number }> {
+  const response = await fetch('/api/v1/voice/transcriptions', {
+    method: 'POST',
+    credentials: 'same-origin',
+    signal,
+    headers: { 'Content-Type': audio.type, ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) },
+    body: audio,
+  });
+  if (!response.ok) {
+    const result = await response.json().catch(() => null);
+    throw new ApiError(
+      response.status,
+      result?.error?.code ?? 'voice_failed',
+      response.status === 413
+        ? 'La dictée dépasse la limite de 2 Mo.'
+        : (result?.error?.message ?? 'La transcription a échoué. Réessayez.'),
+    );
+  }
+  return response.json();
+}

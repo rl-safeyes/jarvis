@@ -39,7 +39,7 @@ Les profils sont immuables dans cette tranche : créer un nouveau profil pour ch
 
 Le dialogue utilise les 20 derniers messages ; le contexte d’orchestration (registre et résultats inclus) est limité à 64 000 caractères. Un dépassement invite à ouvrir une autre conversation ; le résultat complet du spécialiste reste consultable dans ses tâches, tandis que sa restitution au planificateur est bornée à 3 000 caractères. Les événements SSE exposent les étapes ; la réponse est persistée à la fin du tour. Le streaming des tokens, les sessions natives longues et les budgets fins restent à ajouter. Le superviseur possède le socket Docker : il est privilégié et ne doit pas être accessible aux agents.
 
-La voix, les notifications, le compagnon desktop, les espaces multiples et le cycle de release autonome ne sont pas réalisés. Jarvis n’est donc pas encore auto-améliorable.
+La synthèse vocale, les notifications, le compagnon desktop, les espaces multiples et le cycle de release autonome ne sont pas réalisés. Jarvis n’est donc pas encore auto-améliorable.
 
 ## Vérifications
 
@@ -78,3 +78,5 @@ Les décisions du planificateur utilisent trois objets JSON validés (`reply`, `
 - CLI Claude réelle `2.1.296` : création du lien d’abonnement officiel et annulation vérifiées dans un compte Docker vierge, sans connexion du propriétaire ni inférence.
 - Interface ordinateur et format mobile vérifiée avec réponses de connexion simulées, affichage du mode actif et traitement d’un code refusé.
 - App, superviseur et recette Claude `v3` déployés localement ; volumes de comptes et profil global conservés. Le propriétaire doit terminer le parcours Claude et tester son profil pour qualifier l’accès réel à son abonnement.
+
+La dictée STT est implémentée via Speaches/faster-whisper CPU en français, avec capture PWA, relecture avant envoi et moteur Docker dédié. Voir [dictée vocale](16-voice-stt.md).
