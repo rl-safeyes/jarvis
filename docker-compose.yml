@@ -71,7 +71,7 @@ services:
       TEMPORAL_ADDRESS: temporal:7233
       JARVIS_SUPERVISOR_URL: http://supervisor:7080
       JARVIS_SUPERVISOR_TOKEN: ${JARVIS_SUPERVISOR_TOKEN}
-      JARVIS_INITIAL_HARNESSES: ${JARVIS_INITIAL_HARNESSES:-codex}
+      JARVIS_INITIAL_HARNESSES: ${JARVIS_INITIAL_HARNESSES:-codex,claude-code}
     depends_on:
       db: { condition: service_healthy }
       temporal: { condition: service_started }

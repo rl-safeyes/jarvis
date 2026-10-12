@@ -15,7 +15,7 @@ docker compose --profile app up --build -d
 
 Avec Compose v1, remplacer `docker compose` par `docker-compose`. Ouvrir **http://localhost:3000**. Le mot de passe est la valeur `JARVIS_OWNER_PASSWORD` dans `.env`. Relancer `setup` sur une installation existante ajoute les secrets manquants sans modifier les mots de passe existants.
 
-Le premier démarrage installe Codex automatiquement dans une image dédiée. Pour préparer plusieurs moteurs dès le départ, définir `JARVIS_INITIAL_HARNESSES=codex,claude-code,opencode` dans `.env` avant le démarrage. Une opération d’installation apparaît dans les réglages ; sa construction peut prendre plusieurs minutes.
+Le premier démarrage installe automatiquement Codex et Claude Code, chacun dans son image Docker dédiée. Pour installer aussi OpenCode dès le départ, définir `JARVIS_INITIAL_HARNESSES=codex,claude-code,opencode` dans `.env` avant le démarrage. Chaque installation apparaît dans les réglages et peut prendre plusieurs minutes. Sur une installation existante, `setup` conserve la sélection explicite de `.env` : ajouter `claude-code` à `JARVIS_INITIAL_HARNESSES` puis recréer le worker pour l’installer automatiquement. L’installation ne connecte aucun compte et ne change pas le profil par défaut.
 
 ## Connecter un harness
 

@@ -10,7 +10,7 @@ Mise à jour : 12 octobre 2026. Le premier socle simulé est conservé pour les 
 | Accès | Propriétaire unique, session persistante, cookie HttpOnly, CSRF et limitation des tentatives |
 | Conversations | Envoi idempotent, contrôle de version, historique PostgreSQL, événements SSE |
 | Runtimes Docker | Recettes épinglées pour Codex, Claude Code et OpenCode ; aucun emprunt de CLI ou de compte de l’hôte |
-| Premier démarrage | Codex installé par défaut ; plusieurs moteurs initiaux sélectionnables via `JARVIS_INITIAL_HARNESSES` |
+| Premier démarrage | Codex et Claude Code installés par défaut ; moteurs initiaux sélectionnables via `JARVIS_INITIAL_HARNESSES` |
 | Connexion | Assistant PWA utilisable sans IA ; Codex par code ChatGPT ou clé API, Claude par clé Anthropic, OpenCode par clé OpenAI/Anthropic |
 | Profils | Plusieurs comptes et modèles, test réel obligatoire avant sélection, défaut global et affectation par agent |
 | Héritage | Jarvis et spécialistes sans choix explicite utilisent le défaut ; snapshots immuables par mission |

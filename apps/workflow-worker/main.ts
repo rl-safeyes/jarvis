@@ -22,7 +22,7 @@ const worker = await Worker.create({
   activities,
   maxConcurrentActivityTaskExecutions: 4,
 });
-for (const harness of (process.env.JARVIS_INITIAL_HARNESSES ?? 'codex')
+for (const harness of (process.env.JARVIS_INITIAL_HARNESSES ?? 'codex,claude-code')
   .split(',')
   .filter(Boolean)) {
   const h = (await pool.query('SELECT * FROM harness_installations WHERE id=$1', [harness]))

@@ -3,7 +3,7 @@ import { writeFileSync, readFileSync, existsSync, appendFileSync, chmodSync } fr
 const additions = {
   JARVIS_VAULT_KEY: randomBytes(32).toString('hex'),
   JARVIS_SUPERVISOR_TOKEN: randomBytes(32).toString('hex'),
-  JARVIS_INITIAL_HARNESSES: 'codex',
+  JARVIS_INITIAL_HARNESSES: 'codex,claude-code',
 };
 if (existsSync('.env')) {
   const content = readFileSync('.env', 'utf8');
