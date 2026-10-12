@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from './api.ts';
+import { HarnessConnectionHelp } from './HarnessConnectionHelp.tsx';
 import type { HarnessDashboard, HarnessId } from '../../../packages/contracts/src/harnesses.ts';
 
 export function HarnessSettings({ onChange }: { onChange: () => void }) {
@@ -86,7 +87,10 @@ export function HarnessSettings({ onChange }: { onChange: () => void }) {
         <div className="harness-grid">
           {data.harnesses.map((h) => (
             <article key={h.id} className="harness-card">
-              <h3>{h.name}</h3>
+              <div className="harness-card-heading">
+                <h3>{h.name}</h3>
+                <HarnessConnectionHelp harness={h.id} name={h.name} />
+              </div>
               <p>Version {h.version}</p>
               <p>
                 {(
